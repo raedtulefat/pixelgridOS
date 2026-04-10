@@ -299,8 +299,19 @@ class FakePixelsEngine {
         (layer.stageScale.isFinite && layer.stageScale > 0)
             ? layer.stageScale
             : 1.0;
-    final targetWidth = sourceWidth * _stageScale * resolvedLayerScale;
-    final targetHeight = sourceHeight * _stageScale * resolvedLayerScale;
+
+    final hasPlacementGuides =
+        layer.stagePosition != Offset.zero || layer.stageScale != 1;
+
+    final sourceAspect = sourceWidth / sourceHeight;
+
+    final baseWidth = hasPlacementGuides ? sourceWidth : viewport.width;
+    final baseHeight = hasPlacementGuides
+        ? sourceHeight
+        : (sourceAspect <= 0 ? sourceHeight : (baseWidth / sourceAspect));
+
+    final targetWidth = baseWidth * _stageScale * resolvedLayerScale;
+    final targetHeight = baseHeight * _stageScale * resolvedLayerScale;
 
     final stageCenter = viewport.center + _stageOffset;
     final layerCenter = stageCenter + (layer.stagePosition * _stageScale);

@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
@@ -276,6 +278,28 @@ class _MenuOverlayState extends State<MenuOverlay> {
     widget.os.setOsMenuVisible(false);
   }
 
+  String _formatNumericLabel(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(2);
+  }
+
+  void _adjustPixelSize(double delta) {
+    final current = widget.os.fakePixelsCellSize;
+    final next = current + delta;
+    if (!next.isFinite || next <= 0) {
+      return;
+    }
+    widget.os.setFakePixelsCellSize(next);
+    unawaited(
+      _settings.setDoubleByKey(
+        SettingKey.fakePixelsResolution,
+        next,
+      ),
+    );
+  }
+
   String? _resolveLogoAsset({
     required String requested,
     required String? fallback,
@@ -467,29 +491,39 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 return ValueListenableBuilder<int>(
                   valueListenable: widget.os.viewportTransformTickListenable,
                   builder: (context, tick, child) {
-                    final isDefault = widget.os.isViewportAtDefault;
-                    final zoomLevel = widget.os.stageZoomLevel;
-                    final zoomLabel = '${(zoomLevel * 100).toStringAsFixed(0)}%';
-                    return _ViewportResetButton(
-                      isDefault: isDefault,
-                      showZoomButtons: _showViewportZoomControls,
-                      zoomLabel: zoomLabel,
-                      onPressed: () {
-                        if (isDefault) {
-                          if (!_showViewportZoomControls) {
+                    return ValueListenableBuilder<double>(
+                      valueListenable: widget.os.fakePixelsCellSizeListenable,
+                      builder: (context, pixelSize, child) {
+                        final isDefault = widget.os.isViewportAtDefault;
+                        final zoomLevel = widget.os.stageZoomLevel;
+                        final zoomLabel =
+                            '${(zoomLevel * 100).toStringAsFixed(0)}%';
+                        final pixelSizeLabel = _formatNumericLabel(pixelSize);
+                        return _ViewportResetButton(
+                          isDefault: isDefault,
+                          showZoomButtons: _showViewportZoomControls,
+                          zoomLabel: zoomLabel,
+                          pixelSizeLabel: pixelSizeLabel,
+                          onPressed: () {
+                            if (isDefault) {
+                              if (!_showViewportZoomControls) {
+                                setState(() {
+                                  _showViewportZoomControls = true;
+                                });
+                              }
+                              return;
+                            }
                             setState(() {
-                              _showViewportZoomControls = true;
+                              _showViewportZoomControls = false;
                             });
-                          }
-                          return;
-                        }
-                        setState(() {
-                          _showViewportZoomControls = false;
-                        });
-                        widget.os.resetViewportTransform();
+                            widget.os.resetViewportTransform();
+                          },
+                          onZoomIn: widget.os.zoomViewportInStep,
+                          onZoomOut: widget.os.zoomViewportOutStep,
+                          onPixelSizeIncrease: () => _adjustPixelSize(1),
+                          onPixelSizeDecrease: () => _adjustPixelSize(-1),
+                        );
                       },
-                      onZoomIn: widget.os.zoomViewportInStep,
-                      onZoomOut: widget.os.zoomViewportOutStep,
                     );
                   },
                 );
@@ -540,17 +574,23 @@ class _ViewportResetButton extends StatelessWidget {
     required this.isDefault,
     required this.showZoomButtons,
     required this.zoomLabel,
+    required this.pixelSizeLabel,
     required this.onPressed,
     required this.onZoomIn,
     required this.onZoomOut,
+    required this.onPixelSizeIncrease,
+    required this.onPixelSizeDecrease,
   });
 
   final bool isDefault;
   final bool showZoomButtons;
   final String zoomLabel;
+  final String pixelSizeLabel;
   final VoidCallback onPressed;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
+  final VoidCallback onPixelSizeIncrease;
+  final VoidCallback onPixelSizeDecrease;
 
   @override
   Widget build(BuildContext context) {
@@ -601,6 +641,32 @@ class _ViewportResetButton extends StatelessWidget {
                 tooltip: 'Zoom out',
                 icon: Icons.remove,
                 onPressed: onZoomOut,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ViewportIconButton(
+                tooltip: 'Increase pixel size',
+                icon: Icons.add,
+                onPressed: onPixelSizeIncrease,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pix $pixelSizeLabel',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ViewportIconButton(
+                tooltip: 'Decrease pixel size',
+                icon: Icons.remove,
+                onPressed: onPixelSizeDecrease,
               ),
             ],
           ),
