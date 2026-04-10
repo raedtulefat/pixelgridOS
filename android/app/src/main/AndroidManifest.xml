@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.game_shell">
+    package="com.example.pixelgrid">
    <application
-        android:label="Game Shell"
+        android:label="pixelgrid"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

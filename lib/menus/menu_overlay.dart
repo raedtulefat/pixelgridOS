@@ -3,29 +3,22 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
-import 'package:game_shell/os.dart';
-import 'package:game_shell/fake_pixels/logo_asset_catalog.dart';
-import 'package:game_shell/menus/menu_style.dart';
-import 'package:game_shell/menus/settings_menu.dart';
-import 'package:game_shell/settings/settings_applier.dart';
-import 'package:game_shell/settings/settings_controller.dart';
-import 'package:game_shell/settings/settings_keys.dart';
-import 'package:game_shell/settings/settings_storage.dart';
-import 'package:game_shell/ui/menu_column.dart';
-import 'package:game_shell/ui/modal.dart';
-import 'package:game_shell/ui/pixel/pixel_border_button.dart';
+import 'package:pixelgrid/os.dart';
+import 'package:pixelgrid/fake_pixels/logo_asset_catalog.dart';
+import 'package:pixelgrid/menus/menu_style.dart';
+import 'package:pixelgrid/menus/settings_menu.dart';
+import 'package:pixelgrid/settings/settings_applier.dart';
+import 'package:pixelgrid/settings/settings_controller.dart';
+import 'package:pixelgrid/settings/settings_keys.dart';
+import 'package:pixelgrid/settings/settings_storage.dart';
+import 'package:pixelgrid/ui/menu_column.dart';
+import 'package:pixelgrid/ui/modal.dart';
+import 'package:pixelgrid/ui/pixel/pixel_border_button.dart';
 
 const String _kTestHubFocusText =
     'Focus: Shell home shows full-screen tiles, hamburger menu, and fake app screens.';
 const String _kQaPromptFallbackText =
     'Focus: Open the hamburger menu, launch each fake app screen, and verify tile grid remains visible behind overlays.';
-
-enum _FakeScreen {
-  phone,
-  messages,
-  browser,
-  files,
-}
 
 class MenuOverlay extends StatefulWidget {
   const MenuOverlay({
@@ -42,7 +35,7 @@ class MenuOverlay extends StatefulWidget {
 }
 
 class _MenuOverlayState extends State<MenuOverlay> {
-  bool _showPrompt = true;
+  bool _showPrompt = false;
   bool _showOsMenu = false;
   bool _showSettingsModal = false;
   bool _developerMode = false;
@@ -50,7 +43,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
   int _settingsTabIndex = 0;
   List<String> _logoAssetOptions = const <String>[];
   String? _selectedLogoAsset;
-  _FakeScreen? _activeScreen;
   bool _showViewportZoomControls = false;
 
   final SettingsController _settings = SettingsController(SettingsStorage());
@@ -92,13 +84,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
     }
 
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      if (_activeScreen != null) {
-        setState(() {
-          _activeScreen = null;
-        });
-        return true;
-      }
-
       if (_showSettingsModal) {
         _closeSettingsModal();
         return true;
@@ -171,11 +156,11 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
     final pixResolution = _settings.getDoubleByKey(
       SettingKey.fakePixelsResolution,
-      defaultValue: 16,
+      defaultValue: 4,
     );
     final pixShades = _settings.getBoolByKey(
       SettingKey.fakePixelsUseShades,
-      defaultValue: true,
+      defaultValue: false,
     );
     final pixGridLineWidth = _settings.getDoubleByKey(
       SettingKey.fakePixelsGridLineWidth,
@@ -270,14 +255,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
     });
   }
 
-  void _openFakeScreen(_FakeScreen screen) {
-    setState(() {
-      _activeScreen = screen;
-      _showOsMenu = false;
-    });
-    widget.os.setOsMenuVisible(false);
-  }
-
   String _formatNumericLabel(double value) {
     if (value == value.roundToDouble()) {
       return value.toInt().toString();
@@ -352,35 +329,11 @@ class _MenuOverlayState extends State<MenuOverlay> {
         if (_showOsMenu)
           Positioned.fill(
             child: Modal(
-              title: 'Shell Menu',
+              title: 'pixelgrid',
               onClose: _toggleOsMenu,
               child: MenuColumn(
                 spacing: 12,
                 children: [
-                  PixelBorderButton(
-                    label: 'Phone',
-                    fillColor: menuFillPrimary,
-                    textColor: menuTextDark,
-                    onPressed: () => _openFakeScreen(_FakeScreen.phone),
-                  ),
-                  PixelBorderButton(
-                    label: 'Messages',
-                    fillColor: menuFillPrimary,
-                    textColor: menuTextDark,
-                    onPressed: () => _openFakeScreen(_FakeScreen.messages),
-                  ),
-                  PixelBorderButton(
-                    label: 'Browser',
-                    fillColor: menuFillPrimary,
-                    textColor: menuTextDark,
-                    onPressed: () => _openFakeScreen(_FakeScreen.browser),
-                  ),
-                  PixelBorderButton(
-                    label: 'Files',
-                    fillColor: menuFillPrimary,
-                    textColor: menuTextDark,
-                    onPressed: () => _openFakeScreen(_FakeScreen.files),
-                  ),
                   PixelBorderButton(
                     label: 'Settings',
                     fillColor: menuFillDark,
@@ -464,17 +417,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 runWithLoading: _runWithLoading,
                 onRequestClose: _closeSettingsModal,
               ),
-            ),
-          ),
-        if (_activeScreen != null)
-          Positioned.fill(
-            child: _FakeScreenOverlay(
-              screen: _activeScreen!,
-              onClose: () {
-                setState(() {
-                  _activeScreen = null;
-                });
-              },
             ),
           ),
         Positioned(
@@ -734,67 +676,6 @@ class _DebugPromptBannerBody extends StatelessWidget {
             height: 1.3,
           ),
           textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
-
-class _FakeScreenOverlay extends StatelessWidget {
-  const _FakeScreenOverlay({
-    required this.screen,
-    required this.onClose,
-  });
-
-  final _FakeScreen screen;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = switch (screen) {
-      _FakeScreen.phone => 'Phone',
-      _FakeScreen.messages => 'Messages',
-      _FakeScreen.browser => 'Browser',
-      _FakeScreen.files => 'Files',
-    };
-
-    return Container(
-      color: Colors.black.withValues(alpha: 0.85),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Modal(
-            title: '$title (Mock)',
-            onClose: onClose,
-            child: MenuColumn(
-              spacing: 12,
-              children: [
-                const Text(
-                  'Placeholder screen for shell prototyping.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70),
-                ),
-                PixelBorderButton(
-                  label: 'Primary action',
-                  fillColor: menuFillPrimary,
-                  textColor: menuTextDark,
-                  onPressed: () {},
-                ),
-                PixelBorderButton(
-                  label: 'Secondary action',
-                  fillColor: menuFillDark,
-                  textColor: menuTextLight,
-                  onPressed: () {},
-                ),
-                PixelBorderButton(
-                  label: 'Close',
-                  fillColor: menuFillDark,
-                  textColor: menuTextLight,
-                  onPressed: onClose,
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

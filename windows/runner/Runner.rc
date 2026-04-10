@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "game_shell" "\0"
+            VALUE "FileDescription", "pixelgrid" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "game_shell" "\0"
+            VALUE "InternalName", "pixelgrid" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "game_shell.exe" "\0"
-            VALUE "ProductName", "game_shell" "\0"
+            VALUE "OriginalFilename", "pixelgrid.exe" "\0"
+            VALUE "ProductName", "pixelgrid" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

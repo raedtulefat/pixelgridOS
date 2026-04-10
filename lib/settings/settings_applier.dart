@@ -1,5 +1,5 @@
-import 'package:game_shell/os.dart';
-import 'package:game_shell/settings/settings_controller.dart';
+import 'package:pixelgrid/os.dart';
+import 'package:pixelgrid/settings/settings_controller.dart';
 
 class SettingsApplier {
   void applyAll({
@@ -7,10 +7,8 @@ class SettingsApplier {
     required Map<SettingToggle, bool> settings,
     required void Function(bool showPrompt) setPromptBannerVisible,
   }) {
-    final promptBanner = settings[SettingToggle.promptBanner];
-    if (promptBanner != null) {
-      setPromptBannerVisible(promptBanner);
-    }
+    final promptBanner = settings[SettingToggle.promptBanner] ?? false;
+    setPromptBannerVisible(promptBanner);
 
     final debugEnabled = settings[SettingToggle.debugEnabled] ?? true;
 
@@ -28,5 +26,4 @@ const Map<SettingToggle, DebugUiLayer> _debugFlagForSetting =
     <SettingToggle, DebugUiLayer>{
   SettingToggle.debugInfoText: DebugUiLayer.infoText,
   SettingToggle.debugShellLogs: DebugUiLayer.shellLogs,
-  SettingToggle.debugSurfaceOutline: DebugUiLayer.surfaceOutline,
 };

@@ -19,7 +19,7 @@ class FakePixelsConfig {
 }
 
 const FakePixelsConfig defaultFakePixelsConfig = FakePixelsConfig(
-  cellSize: 16,
+  cellSize: 4,
   alphaThreshold: 24,
   lineColor: Color(0xFF000000),
   lineStrokeWidth: 0.25,

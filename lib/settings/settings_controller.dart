@@ -1,4 +1,4 @@
-import 'package:game_shell/settings/settings_storage.dart';
+import 'package:pixelgrid/settings/settings_storage.dart';
 
 enum SettingToggle {
   developerMode,
@@ -6,7 +6,6 @@ enum SettingToggle {
   debugEnabled,
   debugInfoText,
   debugShellLogs,
-  debugSurfaceOutline,
 }
 
 class SettingsController {

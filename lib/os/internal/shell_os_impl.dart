@@ -5,29 +5,25 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart'
     show PointerCancelEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent;
-import 'package:game_shell/fake_pixels/fake_pixels_config.dart';
-import 'package:game_shell/fake_pixels/fake_pixels_engine.dart';
-import 'package:game_shell/os/debug/debug_ui_controller.dart';
-import 'package:game_shell/os/os_mode.dart';
+import 'package:pixelgrid/fake_pixels/fake_pixels_config.dart';
+import 'package:pixelgrid/fake_pixels/fake_pixels_engine.dart';
+import 'package:pixelgrid/os/debug/debug_ui_controller.dart';
+import 'package:pixelgrid/os/os_mode.dart';
 
 class ShellOsImpl extends FlameGame {
   static final Paint _backgroundPaint = Paint()
     ..color = const Color(0xFF000000);
-  static final Paint _surfaceOutlinePaint = Paint()
-    ..color = const Color(0xFF4A4A4A)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
-
   final FakePixelsEngine _fakePixels = FakePixelsEngine(
     cellSize: defaultFakePixelsConfig.cellSize,
     alphaThreshold: defaultFakePixelsConfig.alphaThreshold,
     lineColor: defaultFakePixelsConfig.lineColor,
     lineStrokeWidth: defaultFakePixelsConfig.lineStrokeWidth,
-    useShadedColors: true,
+    useShadedColors: false,
   );
   final ValueNotifier<double> _fakePixelsCellSize =
       ValueNotifier<double>(defaultFakePixelsConfig.cellSize);
-  final ValueNotifier<bool> _fakePixelsShadedColors = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _fakePixelsShadedColors =
+      ValueNotifier<bool>(false);
   final ValueNotifier<double> _fakePixelsGridLineWidth =
       ValueNotifier<double>(defaultFakePixelsConfig.lineStrokeWidth);
   final ValueNotifier<String> _fakePixelsLogoAsset = ValueNotifier<String>(
@@ -39,11 +35,8 @@ class ShellOsImpl extends FlameGame {
 
   final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
   final ValueNotifier<bool> _osMenuVisible = ValueNotifier<bool>(false);
-  final ValueNotifier<DebugUiState> _debugUiState = ValueNotifier<DebugUiState>(
-    const DebugUiState(
-      surfaceOutline: true,
-    ),
-  );
+  final ValueNotifier<DebugUiState> _debugUiState =
+      ValueNotifier<DebugUiState>(const DebugUiState());
 
   final Map<int, Offset> _activePointers = <int, Offset>{};
 
@@ -76,10 +69,6 @@ class ShellOsImpl extends FlameGame {
       canvas: canvas,
       viewport: screenRect,
     );
-
-    if (_debugUiState.value.surfaceOutline) {
-      canvas.drawRect(screenRect.deflate(1), _surfaceOutlinePaint);
-    }
 
     super.render(canvas);
   }
@@ -350,7 +339,8 @@ class ShellOsImpl extends FlameGame {
       return;
     }
     final viewportCenter = _viewportCenter;
-    final stageFocal = (focalPoint - viewportCenter - _stageOffset) / previousScale;
+    final stageFocal =
+        (focalPoint - viewportCenter - _stageOffset) / previousScale;
     _stageScale = nextScale;
     _stageOffset = focalPoint - viewportCenter - (stageFocal * _stageScale);
     _syncStageTransform();
@@ -414,8 +404,6 @@ class ShellOsImpl extends FlameGame {
         return state.copyWith(pathFinder: enabled);
       case DebugUiLayer.shellLogs:
         return state.copyWith(shellLogs: enabled);
-      case DebugUiLayer.surfaceOutline:
-        return state.copyWith(surfaceOutline: enabled);
       case DebugUiLayer.actorTouchBounds:
         return state.copyWith(actorTouchBounds: enabled);
     }

@@ -1,12 +1,12 @@
 import "package:flutter/material.dart";
 
-import "package:game_shell/os.dart";
-import "package:game_shell/menus/menu_overlay_types.dart";
-import "package:game_shell/menus/menu_style.dart";
-import "package:game_shell/settings/settings_controller.dart";
-import "package:game_shell/ui/menu_column.dart";
-import "package:game_shell/ui/modal.dart";
-import "package:game_shell/ui/pixel/pixel_border_button.dart";
+import "package:pixelgrid/os.dart";
+import "package:pixelgrid/menus/menu_overlay_types.dart";
+import "package:pixelgrid/menus/menu_style.dart";
+import "package:pixelgrid/settings/settings_controller.dart";
+import "package:pixelgrid/ui/menu_column.dart";
+import "package:pixelgrid/ui/modal.dart";
+import "package:pixelgrid/ui/pixel/pixel_border_button.dart";
 
 enum _SettingsTab {
   config,
@@ -274,11 +274,6 @@ class _SettingsMenuBody extends StatelessWidget {
             value: state.infoText,
             setting: SettingToggle.debugInfoText,
           ),
-          _SettingsOption(
-            label: "Surface outline",
-            value: state.surfaceOutline,
-            setting: SettingToggle.debugSurfaceOutline,
-          ),
         ];
 
         return Padding(
@@ -347,18 +342,6 @@ class _SettingsMenuBody extends StatelessWidget {
             value: option.value,
             onChanged: (value) => onSettingChanged(option.setting, value),
           ),
-        PixelBorderButton(
-          label: "Refresh shell",
-          fillColor: menuFillPrimary,
-          textColor: menuTextDark,
-          minHeight: 40,
-          onPressed: () async {
-            onRequestClose();
-            await runWithLoading(
-              () => os.refreshShell(),
-            );
-          },
-        ),
       ],
     );
   }

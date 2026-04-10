@@ -1,11 +1,11 @@
 {
-    "name": "Game Shell",
-    "short_name": "Game Shell",
+    "name": "pixelgrid",
+    "short_name": "pixelgrid",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A reusable game shell.",
+    "description": "A reusable pixelgrid.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

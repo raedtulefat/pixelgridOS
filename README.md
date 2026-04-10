@@ -1,6 +1,6 @@
-# game_shell
+# pixelgrid
 
-A reusable game shell built with Flutter and Flame.
+A reusable pixelgrid built with Flutter and Flame.
   - Flutter: https://flutter.dev/docs/get-started/install/macos
   - Flame: https://github.com/flame-engine/flame
 

@@ -1,4 +1,4 @@
-import 'package:game_shell/os/internal/shell_os_impl.dart';
+import 'package:pixelgrid/os/internal/shell_os_impl.dart';
 
 export 'os/debug/debug_ui_controller.dart' show DebugUiLayer, DebugUiState;
 export 'os/os_mode.dart';

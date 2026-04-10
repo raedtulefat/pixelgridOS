@@ -1,8 +1,8 @@
 import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
-import 'package:game_shell/os.dart';
-import 'package:game_shell/menus/menu_overlay.dart';
+import 'package:pixelgrid/os.dart';
+import 'package:pixelgrid/menus/menu_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,20 +20,20 @@ void main() {
         return MediaQuery.withNoTextScaling(child: child);
       },
       home: Scaffold(
-        body: Listener(
-          behavior: HitTestBehavior.translucent,
-          onPointerSignal: (event) => os.handlePointerSignal(event),
-          onPointerDown: os.handlePointerDown,
-          onPointerMove: os.handlePointerMove,
-          onPointerUp: os.handlePointerUp,
-          onPointerCancel: os.handlePointerCancel,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              GameWidget(game: os),
-              MenuOverlay(os: os),
-            ],
-          ),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerSignal: (event) => os.handlePointerSignal(event),
+              onPointerDown: os.handlePointerDown,
+              onPointerMove: os.handlePointerMove,
+              onPointerUp: os.handlePointerUp,
+              onPointerCancel: os.handlePointerCancel,
+              child: GameWidget(game: os),
+            ),
+            MenuOverlay(os: os),
+          ],
         ),
       ),
     ),
