@@ -24,6 +24,6 @@ const FakePixelsConfig defaultFakePixelsConfig = FakePixelsConfig(
   lineColor: Color(0xFF000000),
   lineStrokeWidth: 0.125,
   layers: <FakePixelsLayer>[
-    FakePixelsLayer(assetPath: 'assets/ui/logo.png'),
+    FakePixelsLayer(assetPath: 'assets/ui/logo/logo1.png'),
   ],
 );

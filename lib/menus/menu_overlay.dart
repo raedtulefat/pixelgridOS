@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:game_shell/os.dart';
+import 'package:game_shell/fake_pixels/logo_asset_catalog.dart';
 import 'package:game_shell/menus/menu_style.dart';
 import 'package:game_shell/menus/settings_menu.dart';
 import 'package:game_shell/settings/settings_applier.dart';
 import 'package:game_shell/settings/settings_controller.dart';
+import 'package:game_shell/settings/settings_keys.dart';
 import 'package:game_shell/settings/settings_storage.dart';
 import 'package:game_shell/ui/menu_column.dart';
 import 'package:game_shell/ui/modal.dart';
@@ -43,6 +45,9 @@ class _MenuOverlayState extends State<MenuOverlay> {
   bool _showSettingsModal = false;
   bool _developerMode = false;
   bool _debugEnabled = true;
+  int _settingsTabIndex = 0;
+  List<String> _logoAssetOptions = const <String>[];
+  String? _selectedLogoAsset;
   _FakeScreen? _activeScreen;
 
   final SettingsController _settings = SettingsController(SettingsStorage());
@@ -105,9 +110,13 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
   Future<void> _loadSettings() async {
     await _settings.load();
+    final logoOptions = await LogoAssetCatalog.loadOptions();
     if (!mounted) {
       return;
     }
+    setState(() {
+      _logoAssetOptions = logoOptions;
+    });
     _applySettingsToOs();
   }
 
@@ -123,12 +132,60 @@ class _MenuOverlayState extends State<MenuOverlay> {
     final settings = _settings.snapshot();
     final developerMode = settings[SettingToggle.developerMode] ?? false;
     final debugEnabled = settings[SettingToggle.debugEnabled] ?? true;
-    if (_developerMode != developerMode || _debugEnabled != debugEnabled) {
+    final storedTabIndex = _settings.getIntByKey(
+      SettingKey.settingsLastOpenTab,
+      defaultValue: 0,
+    );
+    final resolvedTabIndex =
+        storedTabIndex.clamp(0, SettingsMenu.tabCount - 1).toInt();
+    if (_developerMode != developerMode ||
+        _debugEnabled != debugEnabled ||
+        _settingsTabIndex != resolvedTabIndex) {
       setState(() {
         _developerMode = developerMode;
         _debugEnabled = debugEnabled;
+        _settingsTabIndex = resolvedTabIndex;
       });
     }
+
+    final pixResolution = _settings.getDoubleByKey(
+      SettingKey.fakePixelsResolution,
+      defaultValue: 16,
+    );
+    final pixShades = _settings.getBoolByKey(
+      SettingKey.fakePixelsUseShades,
+      defaultValue: true,
+    );
+
+    final fallbackLogoAsset = LogoAssetCatalog.fallbackFrom(_logoAssetOptions);
+    final savedLogoAsset = _settings.getStringByKey(
+      SettingKey.fakePixelsLogoAsset,
+      defaultValue: fallbackLogoAsset ?? '',
+    );
+    final resolvedLogoAsset = _resolveLogoAsset(
+      requested: savedLogoAsset,
+      fallback: fallbackLogoAsset,
+    );
+
+    widget.os
+      ..setFakePixelsCellSize(pixResolution)
+      ..setFakePixelsShadedColorsEnabled(pixShades);
+
+    if (resolvedLogoAsset != null) {
+      widget.os.setFakePixelsLogoAsset(resolvedLogoAsset);
+      if (_selectedLogoAsset != resolvedLogoAsset && mounted) {
+        setState(() {
+          _selectedLogoAsset = resolvedLogoAsset;
+        });
+      }
+      if (savedLogoAsset != resolvedLogoAsset) {
+        _settings.setStringByKey(
+          SettingKey.fakePixelsLogoAsset,
+          resolvedLogoAsset,
+        );
+      }
+    }
+
     _settingsApplier.applyAll(
       os: widget.os,
       settings: settings,
@@ -182,6 +239,22 @@ class _MenuOverlayState extends State<MenuOverlay> {
       _showOsMenu = false;
     });
     widget.os.setOsMenuVisible(false);
+  }
+
+  String? _resolveLogoAsset({
+    required String requested,
+    required String? fallback,
+  }) {
+    if (_logoAssetOptions.isEmpty) {
+      return null;
+    }
+    if (requested.isNotEmpty && _logoAssetOptions.contains(requested)) {
+      return requested;
+    }
+    if (fallback != null && _logoAssetOptions.contains(fallback)) {
+      return fallback;
+    }
+    return _logoAssetOptions.first;
   }
 
   Future<T?> _runWithLoading<T>(Future<T> Function() task) async {
@@ -269,8 +342,51 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 developerMode: _developerMode,
                 debugEnabled: _debugEnabled,
                 showPrompt: _showPrompt,
+                logoAssetOptions: _logoAssetOptions,
+                selectedLogoAsset: _selectedLogoAsset,
+                initialTabIndex: _settingsTabIndex,
+                onTabChanged: (index) async {
+                  final resolved =
+                      index.clamp(0, SettingsMenu.tabCount - 1).toInt();
+                  if (_settingsTabIndex != resolved && mounted) {
+                    setState(() {
+                      _settingsTabIndex = resolved;
+                    });
+                  }
+                  await _settings.setIntByKey(
+                    SettingKey.settingsLastOpenTab,
+                    resolved,
+                  );
+                },
                 onSettingChanged: (setting, value) {
                   _updateSetting(setting, value ?? false, persist: true);
+                },
+                onPixResolutionChanged: (value) async {
+                  widget.os.setFakePixelsCellSize(value);
+                  await _settings.setDoubleByKey(
+                    SettingKey.fakePixelsResolution,
+                    value,
+                  );
+                },
+                onPixShadesChanged: (enabled) async {
+                  widget.os.setFakePixelsShadedColorsEnabled(enabled);
+                  await _settings.setBoolByKey(
+                    SettingKey.fakePixelsUseShades,
+                    enabled,
+                  );
+                },
+                onLogoAssetChanged: (assetPath) async {
+                  widget.os.setFakePixelsLogoAsset(assetPath);
+                  await _settings.setStringByKey(
+                    SettingKey.fakePixelsLogoAsset,
+                    assetPath,
+                  );
+                  if (!mounted) {
+                    return;
+                  }
+                  setState(() {
+                    _selectedLogoAsset = assetPath;
+                  });
                 },
                 runWithLoading: _runWithLoading,
                 onRequestClose: _closeSettingsModal,

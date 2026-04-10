@@ -22,6 +22,13 @@ class ShellOsImpl extends FlameGame {
     alphaThreshold: defaultFakePixelsConfig.alphaThreshold,
     lineColor: defaultFakePixelsConfig.lineColor,
     lineStrokeWidth: defaultFakePixelsConfig.lineStrokeWidth,
+    useShadedColors: true,
+  );
+  final ValueNotifier<double> _fakePixelsCellSize =
+      ValueNotifier<double>(defaultFakePixelsConfig.cellSize);
+  final ValueNotifier<bool> _fakePixelsShadedColors = ValueNotifier<bool>(true);
+  final ValueNotifier<String> _fakePixelsLogoAsset = ValueNotifier<String>(
+    defaultFakePixelsConfig.layers.first.assetPath,
   );
 
   final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
@@ -35,7 +42,7 @@ class ShellOsImpl extends FlameGame {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    _fakePixels.setLayers(defaultFakePixelsConfig.layers);
+    setFakePixelsLogoAsset(_fakePixelsLogoAsset.value);
   }
 
   @override
@@ -71,6 +78,21 @@ class ShellOsImpl extends FlameGame {
 
   ValueListenable<DebugUiState> get debugUiListenable => _debugUiState;
 
+  ValueListenable<double> get fakePixelsCellSizeListenable =>
+      _fakePixelsCellSize;
+
+  double get fakePixelsCellSize => _fakePixelsCellSize.value;
+
+  ValueListenable<bool> get fakePixelsShadedColorsListenable =>
+      _fakePixelsShadedColors;
+
+  bool get fakePixelsShadedColorsEnabled => _fakePixelsShadedColors.value;
+
+  ValueListenable<String> get fakePixelsLogoAssetListenable =>
+      _fakePixelsLogoAsset;
+
+  String get fakePixelsLogoAsset => _fakePixelsLogoAsset.value;
+
   void setOsMenuVisible(bool visible) {
     if (_osMenuVisible.value == visible) {
       return;
@@ -81,6 +103,40 @@ class ShellOsImpl extends FlameGame {
   void setDebugUiFlag(DebugUiLayer layer, bool enabled) {
     _debugUiState.value =
         _updatedDebugState(_debugUiState.value, layer, enabled);
+  }
+
+  void setFakePixelsCellSize(double cellSize) {
+    if (!cellSize.isFinite || cellSize <= 0) {
+      return;
+    }
+    _fakePixels.cellSize = cellSize;
+    if (_fakePixelsCellSize.value == cellSize) {
+      return;
+    }
+    _fakePixelsCellSize.value = cellSize;
+  }
+
+  void setFakePixelsShadedColorsEnabled(bool enabled) {
+    _fakePixels.useShadedColors = enabled;
+    if (_fakePixelsShadedColors.value == enabled) {
+      return;
+    }
+    _fakePixelsShadedColors.value = enabled;
+  }
+
+  void setFakePixelsLogoAsset(String assetPath) {
+    if (assetPath.isEmpty) {
+      return;
+    }
+    _fakePixels.setLayers(
+      <FakePixelsLayer>[
+        FakePixelsLayer(assetPath: assetPath),
+      ],
+    );
+    if (_fakePixelsLogoAsset.value == assetPath) {
+      return;
+    }
+    _fakePixelsLogoAsset.value = assetPath;
   }
 
   void toggleDebugOverlay({bool fromMenuOverlay = false}) {

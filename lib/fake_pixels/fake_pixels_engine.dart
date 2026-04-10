@@ -25,11 +25,14 @@ class FakePixelsLayer {
 /// Renders a constant-size fake-pixel grid and fills cells by sampling PNG data.
 class FakePixelsEngine {
   FakePixelsEngine({
-    this.cellSize = 16,
+    double cellSize = 16,
     this.alphaThreshold = 24,
     Color lineColor = const Color(0xFF000000),
     this.lineStrokeWidth = 0.125,
-  })  : _linePaint = Paint()
+    bool useShadedColors = true,
+  })  : _cellSize = cellSize,
+        _useShadedColors = useShadedColors,
+        _linePaint = Paint()
           ..color = lineColor
           ..style = PaintingStyle.stroke
           ..isAntiAlias = false,
@@ -37,7 +40,23 @@ class FakePixelsEngine {
           ..style = PaintingStyle.fill
           ..isAntiAlias = false;
 
-  final double cellSize;
+  double get cellSize => _cellSize;
+
+  set cellSize(double value) {
+    if (!value.isFinite || value <= 0) {
+      return;
+    }
+    _cellSize = value;
+  }
+
+  bool get useShadedColors => _useShadedColors;
+
+  set useShadedColors(bool value) {
+    _useShadedColors = value;
+  }
+
+  double _cellSize;
+  bool _useShadedColors;
   final int alphaThreshold;
   final double lineStrokeWidth;
 
@@ -217,7 +236,16 @@ class FakePixelsEngine {
       uMax = 1 - originalUMin;
     }
 
-    return alphaMask.averageOpaqueColorInNormalizedRect(
+    if (useShadedColors) {
+      return alphaMask.averageOpaqueColorInNormalizedRect(
+        uMin: uMin,
+        uMax: uMax,
+        vMin: vMin,
+        vMax: vMax,
+      );
+    }
+
+    return alphaMask.exactOpaqueColorInNormalizedRect(
       uMin: uMin,
       uMax: uMax,
       vMin: vMin,
@@ -327,6 +355,7 @@ class _AlphaMask {
   const _AlphaMask({
     required this.width,
     required this.height,
+    required this.rgbaBytes,
     required this.opaqueCountPrefixSums,
     required this.redPrefixSums,
     required this.greenPrefixSums,
@@ -336,7 +365,7 @@ class _AlphaMask {
   factory _AlphaMask.fromRgbaBytes({
     required int width,
     required int height,
-    required List<int> rgbaBytes,
+    required Uint8List rgbaBytes,
     required int alphaThreshold,
   }) {
     final prefixWidth = width + 1;
@@ -352,13 +381,19 @@ class _AlphaMask {
     for (var y = 0; y < height; y += 1) {
       for (var x = 0; x < width; x += 1) {
         final pixelIndex = (y * width + x) * 4;
+        final redChannel = rgbaBytes[pixelIndex];
+        final greenChannel = rgbaBytes[pixelIndex + 1];
+        final blueChannel = rgbaBytes[pixelIndex + 2];
         final alpha = rgbaBytes[pixelIndex + 3];
         final isOpaque = alpha >= alphaThreshold;
+        final isBlack =
+            redChannel == 0 && greenChannel == 0 && blueChannel == 0;
+        final isActivePixel = isOpaque && !isBlack;
 
-        final opaqueValue = isOpaque ? 1 : 0;
-        final red = isOpaque ? rgbaBytes[pixelIndex] : 0;
-        final green = isOpaque ? rgbaBytes[pixelIndex + 1] : 0;
-        final blue = isOpaque ? rgbaBytes[pixelIndex + 2] : 0;
+        final opaqueValue = isActivePixel ? 1 : 0;
+        final red = isActivePixel ? redChannel : 0;
+        final green = isActivePixel ? greenChannel : 0;
+        final blue = isActivePixel ? blueChannel : 0;
 
         final targetIndex = (y + 1) * prefixWidth + (x + 1);
         final leftIndex = targetIndex - 1;
@@ -390,6 +425,7 @@ class _AlphaMask {
     return _AlphaMask(
       width: width,
       height: height,
+      rgbaBytes: rgbaBytes,
       opaqueCountPrefixSums: opaqueCountPrefixSums,
       redPrefixSums: redPrefixSums,
       greenPrefixSums: greenPrefixSums,
@@ -399,6 +435,7 @@ class _AlphaMask {
 
   final int width;
   final int height;
+  final Uint8List rgbaBytes;
   final List<int> opaqueCountPrefixSums;
   final List<int> redPrefixSums;
   final List<int> greenPrefixSums;
@@ -414,33 +451,16 @@ class _AlphaMask {
       return null;
     }
 
-    final clampedUMin = uMin.clamp(0.0, 1.0);
-    final clampedUMax = uMax.clamp(0.0, 1.0);
-    final clampedVMin = vMin.clamp(0.0, 1.0);
-    final clampedVMax = vMax.clamp(0.0, 1.0);
-
-    if (clampedUMax <= clampedUMin || clampedVMax <= clampedVMin) {
+    final bounds = _normalizedRectBounds(
+      uMin: uMin,
+      uMax: uMax,
+      vMin: vMin,
+      vMax: vMax,
+    );
+    if (bounds == null) {
       return null;
     }
-
-    var left = (clampedUMin * width).floor();
-    var right = (clampedUMax * width).ceil();
-    var top = (clampedVMin * height).floor();
-    var bottom = (clampedVMax * height).ceil();
-
-    if (left < 0) left = 0;
-    if (left > width - 1) left = width - 1;
-    if (right < 1) right = 1;
-    if (right > width) right = width;
-
-    if (top < 0) top = 0;
-    if (top > height - 1) top = height - 1;
-    if (bottom < 1) bottom = 1;
-    if (bottom > height) bottom = height;
-
-    if (right <= left || bottom <= top) {
-      return null;
-    }
+    final (left, right, top, bottom) = bounds;
 
     final opaqueCount = _sumInRect(
       opaqueCountPrefixSums,
@@ -480,6 +500,85 @@ class _AlphaMask {
     final blue = (blueTotal / opaqueCount).round().clamp(0, 255);
 
     return Color.fromARGB(255, red, green, blue);
+  }
+
+  Color? exactOpaqueColorInNormalizedRect({
+    required double uMin,
+    required double uMax,
+    required double vMin,
+    required double vMax,
+    int strictAlphaThreshold = 250,
+  }) {
+    if (width <= 0 || height <= 0) {
+      return null;
+    }
+
+    final bounds = _normalizedRectBounds(
+      uMin: uMin,
+      uMax: uMax,
+      vMin: vMin,
+      vMax: vMax,
+    );
+    if (bounds == null) {
+      return null;
+    }
+    final (left, right, top, bottom) = bounds;
+
+    for (var y = top; y < bottom; y += 1) {
+      for (var x = left; x < right; x += 1) {
+        final index = (y * width + x) * 4;
+        final red = rgbaBytes[index];
+        final green = rgbaBytes[index + 1];
+        final blue = rgbaBytes[index + 2];
+        final alpha = rgbaBytes[index + 3];
+
+        final isBlack = red == 0 && green == 0 && blue == 0;
+        if (isBlack || alpha < strictAlphaThreshold) {
+          continue;
+        }
+
+        return Color.fromARGB(255, red, green, blue);
+      }
+    }
+
+    return null;
+  }
+
+  (int, int, int, int)? _normalizedRectBounds({
+    required double uMin,
+    required double uMax,
+    required double vMin,
+    required double vMax,
+  }) {
+    final clampedUMin = uMin.clamp(0.0, 1.0);
+    final clampedUMax = uMax.clamp(0.0, 1.0);
+    final clampedVMin = vMin.clamp(0.0, 1.0);
+    final clampedVMax = vMax.clamp(0.0, 1.0);
+
+    if (clampedUMax <= clampedUMin || clampedVMax <= clampedVMin) {
+      return null;
+    }
+
+    var left = (clampedUMin * width).floor();
+    var right = (clampedUMax * width).ceil();
+    var top = (clampedVMin * height).floor();
+    var bottom = (clampedVMax * height).ceil();
+
+    if (left < 0) left = 0;
+    if (left > width - 1) left = width - 1;
+    if (right < 1) right = 1;
+    if (right > width) right = width;
+
+    if (top < 0) top = 0;
+    if (top > height - 1) top = height - 1;
+    if (bottom < 1) bottom = 1;
+    if (bottom > height) bottom = height;
+
+    if (right <= left || bottom <= top) {
+      return null;
+    }
+
+    return (left, right, top, bottom);
   }
 
   int _sumInRect(
