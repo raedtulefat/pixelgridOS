@@ -49,6 +49,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
   List<String> _logoAssetOptions = const <String>[];
   String? _selectedLogoAsset;
   _FakeScreen? _activeScreen;
+  bool _showViewportZoomControls = false;
 
   final SettingsController _settings = SettingsController(SettingsStorage());
   final SettingsApplier _settingsApplier = SettingsApplier();
@@ -102,6 +103,24 @@ class _MenuOverlayState extends State<MenuOverlay> {
       }
 
       widget.os.toggleDebugOverlay(fromMenuOverlay: true);
+      return true;
+    }
+
+    final panStep = widget.os.fakePixelsCellSize * 25;
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      widget.os.panViewportBy(Offset(-panStep, 0));
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      widget.os.panViewportBy(Offset(panStep, 0));
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      widget.os.panViewportBy(Offset(0, -panStep));
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      widget.os.panViewportBy(Offset(0, panStep));
       return true;
     }
 
@@ -160,6 +179,10 @@ class _MenuOverlayState extends State<MenuOverlay> {
       SettingKey.fakePixelsGridLineWidth,
       defaultValue: 0.25,
     );
+    final pixGesturesEnabled = _settings.getBoolByKey(
+      SettingKey.fakePixelsGestureControlsEnabled,
+      defaultValue: true,
+    );
 
     final fallbackLogoAsset = LogoAssetCatalog.fallbackFrom(_logoAssetOptions);
     final savedLogoAsset = _settings.getStringByKey(
@@ -174,7 +197,14 @@ class _MenuOverlayState extends State<MenuOverlay> {
     widget.os
       ..setFakePixelsCellSize(pixResolution)
       ..setFakePixelsShadedColorsEnabled(pixShades)
-      ..setFakePixelsGridLineWidth(pixGridLineWidth);
+      ..setFakePixelsGridLineWidth(pixGridLineWidth)
+      ..setViewportGesturesEnabled(pixGesturesEnabled);
+
+    if (!pixGesturesEnabled && _showViewportZoomControls && mounted) {
+      setState(() {
+        _showViewportZoomControls = false;
+      });
+    }
 
     if (resolvedLogoAsset != null) {
       widget.os.setFakePixelsLogoAsset(resolvedLogoAsset);
@@ -387,6 +417,13 @@ class _MenuOverlayState extends State<MenuOverlay> {
                     value,
                   );
                 },
+                onPixGestureControlsChanged: (enabled) async {
+                  widget.os.setViewportGesturesEnabled(enabled);
+                  await _settings.setBoolByKey(
+                    SettingKey.fakePixelsGestureControlsEnabled,
+                    enabled,
+                  );
+                },
                 onLogoAssetChanged: (assetPath) async {
                   widget.os.setFakePixelsLogoAsset(assetPath);
                   await _settings.setStringByKey(
@@ -416,6 +453,50 @@ class _MenuOverlayState extends State<MenuOverlay> {
               },
             ),
           ),
+        Positioned(
+          left: 16,
+          top: 16,
+          child: SafeArea(
+            minimum: const EdgeInsets.only(top: 8),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: widget.os.viewportGesturesEnabledListenable,
+              builder: (context, gesturesEnabled, _) {
+                if (!gesturesEnabled) {
+                  return const SizedBox.shrink();
+                }
+                return ValueListenableBuilder<int>(
+                  valueListenable: widget.os.viewportTransformTickListenable,
+                  builder: (context, tick, child) {
+                    final isDefault = widget.os.isViewportAtDefault;
+                    final zoomLevel = widget.os.stageZoomLevel;
+                    final zoomLabel = '${(zoomLevel * 100).toStringAsFixed(0)}%';
+                    return _ViewportResetButton(
+                      isDefault: isDefault,
+                      showZoomButtons: _showViewportZoomControls,
+                      zoomLabel: zoomLabel,
+                      onPressed: () {
+                        if (isDefault) {
+                          if (!_showViewportZoomControls) {
+                            setState(() {
+                              _showViewportZoomControls = true;
+                            });
+                          }
+                          return;
+                        }
+                        setState(() {
+                          _showViewportZoomControls = false;
+                        });
+                        widget.os.resetViewportTransform();
+                      },
+                      onZoomIn: widget.os.zoomViewportInStep,
+                      onZoomOut: widget.os.zoomViewportOutStep,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -444,6 +525,116 @@ class _SettingsButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Icon(
               isOpen ? Icons.menu_open : Icons.menu,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewportResetButton extends StatelessWidget {
+  const _ViewportResetButton({
+    required this.isDefault,
+    required this.showZoomButtons,
+    required this.zoomLabel,
+    required this.onPressed,
+    required this.onZoomIn,
+    required this.onZoomOut,
+  });
+
+  final bool isDefault;
+  final bool showZoomButtons;
+  final String zoomLabel;
+  final VoidCallback onPressed;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Tooltip(
+          message: isDefault ? 'Zoom controls' : 'Reset view',
+          child: Material(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: onPressed,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Icon(
+                  Icons.filter_center_focus,
+                  color: isDefault ? Colors.white38 : Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showZoomButtons) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ViewportIconButton(
+                tooltip: 'Zoom in',
+                icon: Icons.add,
+                onPressed: onZoomIn,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                zoomLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ViewportIconButton(
+                tooltip: 'Zoom out',
+                icon: Icons.remove,
+                onPressed: onZoomOut,
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ViewportIconButton extends StatelessWidget {
+  const _ViewportIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Icon(
+              icon,
               color: Colors.white,
               size: 18,
             ),

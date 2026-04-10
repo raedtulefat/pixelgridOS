@@ -20,19 +20,20 @@ void main() {
         return MediaQuery.withNoTextScaling(child: child);
       },
       home: Scaffold(
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Listener(
-              onPointerSignal: (event) => os.handlePointerSignal(event),
-              onPointerDown: os.handlePointerDown,
-              onPointerMove: os.handlePointerMove,
-              onPointerUp: os.handlePointerUp,
-              onPointerCancel: os.handlePointerCancel,
-              child: GameWidget(game: os),
-            ),
-            MenuOverlay(os: os),
-          ],
+        body: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerSignal: (event) => os.handlePointerSignal(event),
+          onPointerDown: os.handlePointerDown,
+          onPointerMove: os.handlePointerMove,
+          onPointerUp: os.handlePointerUp,
+          onPointerCancel: os.handlePointerCancel,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GameWidget(game: os),
+              MenuOverlay(os: os),
+            ],
+          ),
         ),
       ),
     ),

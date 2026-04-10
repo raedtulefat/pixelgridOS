@@ -1,6 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
-import 'package:flutter/gestures.dart' show PointerSignalEvent;
+import 'package:flutter/gestures.dart'
+    show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart'
     show PointerCancelEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent;
@@ -32,6 +33,9 @@ class ShellOsImpl extends FlameGame {
   final ValueNotifier<String> _fakePixelsLogoAsset = ValueNotifier<String>(
     defaultFakePixelsConfig.layers.first.assetPath,
   );
+  final ValueNotifier<bool> _viewportGesturesEnabled =
+      ValueNotifier<bool>(true);
+  final ValueNotifier<int> _viewportTransformTick = ValueNotifier<int>(0);
 
   final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
   final ValueNotifier<bool> _osMenuVisible = ValueNotifier<bool>(false);
@@ -41,10 +45,18 @@ class ShellOsImpl extends FlameGame {
     ),
   );
 
+  final Map<int, Offset> _activePointers = <int, Offset>{};
+
+  double _stageScale = 1;
+  Offset _stageOffset = Offset.zero;
+  double? _twoFingerDistance;
+  Offset? _twoFingerFocalPoint;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     setFakePixelsLogoAsset(_fakePixelsLogoAsset.value);
+    _syncStageTransform();
   }
 
   @override
@@ -57,6 +69,8 @@ class ShellOsImpl extends FlameGame {
 
     final screenRect = Rect.fromLTWH(0, 0, canvasSize.x, canvasSize.y);
     canvas.drawRect(screenRect, _backgroundPaint);
+
+    _syncStageTransform();
 
     _fakePixels.render(
       canvas: canvas,
@@ -99,6 +113,19 @@ class ShellOsImpl extends FlameGame {
       _fakePixelsLogoAsset;
 
   String get fakePixelsLogoAsset => _fakePixelsLogoAsset.value;
+
+  ValueListenable<bool> get viewportGesturesEnabledListenable =>
+      _viewportGesturesEnabled;
+
+  bool get viewportGesturesEnabled => _viewportGesturesEnabled.value;
+
+  ValueListenable<int> get viewportTransformTickListenable =>
+      _viewportTransformTick;
+
+  bool get isViewportAtDefault =>
+      _stageScale == 1 && _stageOffset == Offset.zero;
+
+  double get stageZoomLevel => _stageScale;
 
   void setOsMenuVisible(bool visible) {
     if (_osMenuVisible.value == visible) {
@@ -157,6 +184,49 @@ class ShellOsImpl extends FlameGame {
     _fakePixelsLogoAsset.value = assetPath;
   }
 
+  void setViewportGesturesEnabled(bool enabled) {
+    if (_viewportGesturesEnabled.value == enabled) {
+      return;
+    }
+    _viewportGesturesEnabled.value = enabled;
+    if (!enabled) {
+      resetViewportTransform();
+    }
+  }
+
+  void resetViewportTransform() {
+    _stageScale = 1;
+    _stageOffset = Offset.zero;
+    _twoFingerDistance = null;
+    _twoFingerFocalPoint = null;
+    _activePointers.clear();
+    _syncStageTransform();
+    _notifyViewportTransformChanged();
+  }
+
+  void zoomViewportInStep() {
+    if (!_viewportGesturesEnabled.value) {
+      return;
+    }
+    _zoomAtStageCenter(1.15);
+  }
+
+  void zoomViewportOutStep() {
+    if (!_viewportGesturesEnabled.value) {
+      return;
+    }
+    _zoomAtStageCenter(1 / 1.15);
+  }
+
+  void panViewportBy(Offset delta) {
+    if (!_viewportGesturesEnabled.value || delta == Offset.zero) {
+      return;
+    }
+    _stageOffset += delta;
+    _syncStageTransform();
+    _notifyViewportTransformChanged();
+  }
+
   void toggleDebugOverlay({bool fromMenuOverlay = false}) {
     setOsMenuVisible(!_osMenuVisible.value);
   }
@@ -165,15 +235,158 @@ class ShellOsImpl extends FlameGame {
     _osMode.value = OsMode.home;
   }
 
-  void handlePointerSignal(PointerSignalEvent event) {}
+  void handlePointerSignal(PointerSignalEvent event) {
+    if (!_viewportGesturesEnabled.value) {
+      return;
+    }
+    if (event is! PointerScrollEvent) {
+      return;
+    }
 
-  void handlePointerDown(PointerDownEvent event) {}
+    final zoomRatio = (1 - (event.scrollDelta.dy * 0.0015)).clamp(0.8, 1.25);
+    _zoomAround(
+      focalPoint: event.localPosition,
+      nextScale: _clampedScale(_stageScale * zoomRatio),
+    );
+  }
 
-  void handlePointerMove(PointerMoveEvent event) {}
+  void handlePointerDown(PointerDownEvent event) {
+    if (!_viewportGesturesEnabled.value) {
+      return;
+    }
+    _activePointers[event.pointer] = event.localPosition;
+    _syncTwoFingerGestureState();
+  }
 
-  void handlePointerUp(PointerUpEvent event) {}
+  void handlePointerMove(PointerMoveEvent event) {
+    if (!_viewportGesturesEnabled.value) {
+      return;
+    }
 
-  void handlePointerCancel(PointerCancelEvent event) {}
+    final previous = _activePointers[event.pointer];
+    if (previous == null) {
+      _activePointers[event.pointer] = event.localPosition;
+      _syncTwoFingerGestureState();
+      return;
+    }
+
+    _activePointers[event.pointer] = event.localPosition;
+
+    if (_activePointers.length == 1) {
+      final panDelta = event.localPosition - previous;
+      if (panDelta != Offset.zero) {
+        _stageOffset += panDelta;
+        _syncStageTransform();
+        _notifyViewportTransformChanged();
+      }
+      return;
+    }
+
+    if (_activePointers.length < 2) {
+      return;
+    }
+
+    final values = _activePointers.values.take(2).toList(growable: false);
+    final p1 = values[0];
+    final p2 = values[1];
+    final distance = (p2 - p1).distance;
+    final focalPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+
+    final previousDistance = _twoFingerDistance;
+    final previousFocal = _twoFingerFocalPoint;
+
+    if (previousDistance != null && previousDistance > 0 && distance > 0) {
+      final nextScale =
+          _clampedScale(_stageScale * (distance / previousDistance));
+      _zoomAround(
+        focalPoint: focalPoint,
+        nextScale: nextScale,
+      );
+    }
+
+    if (previousFocal != null) {
+      final panDelta = focalPoint - previousFocal;
+      if (panDelta != Offset.zero) {
+        _stageOffset += panDelta;
+        _syncStageTransform();
+        _notifyViewportTransformChanged();
+      }
+    }
+
+    _twoFingerDistance = distance;
+    _twoFingerFocalPoint = focalPoint;
+  }
+
+  void handlePointerUp(PointerUpEvent event) {
+    _activePointers.remove(event.pointer);
+    _syncTwoFingerGestureState();
+  }
+
+  void handlePointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
+    _syncTwoFingerGestureState();
+  }
+
+  void _syncTwoFingerGestureState() {
+    if (_activePointers.length < 2) {
+      _twoFingerDistance = null;
+      _twoFingerFocalPoint = null;
+      return;
+    }
+
+    final values = _activePointers.values.take(2).toList(growable: false);
+    final p1 = values[0];
+    final p2 = values[1];
+    _twoFingerDistance = (p2 - p1).distance;
+    _twoFingerFocalPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+  }
+
+  void _zoomAround({
+    required Offset focalPoint,
+    required double nextScale,
+  }) {
+    final previousScale = _stageScale;
+    if (nextScale == previousScale) {
+      return;
+    }
+    final viewportCenter = _viewportCenter;
+    final stageFocal = (focalPoint - viewportCenter - _stageOffset) / previousScale;
+    _stageScale = nextScale;
+    _stageOffset = focalPoint - viewportCenter - (stageFocal * _stageScale);
+    _syncStageTransform();
+    _notifyViewportTransformChanged();
+  }
+
+  void _zoomAtStageCenter(double ratio) {
+    if (size.x <= 0 || size.y <= 0) {
+      return;
+    }
+    final focalPoint = _viewportCenter + _stageOffset;
+    _zoomAround(
+      focalPoint: focalPoint,
+      nextScale: _clampedScale(_stageScale * ratio),
+    );
+  }
+
+  Offset get _viewportCenter => Offset(size.x / 2, size.y / 2);
+
+  void _syncStageTransform() {
+    _fakePixels.setStageTransform(
+      scale: _stageScale,
+      offset: _stageOffset,
+    );
+  }
+
+  void _notifyViewportTransformChanged() {
+    _viewportTransformTick.value = _viewportTransformTick.value + 1;
+  }
+
+  double _clampedScale(double value) {
+    if (!value.isFinite || value <= 0) {
+      return _stageScale;
+    }
+    return value;
+  }
 
   DebugUiState _updatedDebugState(
     DebugUiState state,

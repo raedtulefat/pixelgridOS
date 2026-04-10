@@ -30,6 +30,7 @@ class SettingsMenu extends StatelessWidget {
     required this.onPixResolutionChanged,
     required this.onPixShadesChanged,
     required this.onPixGridLineWidthChanged,
+    required this.onPixGestureControlsChanged,
     required this.onLogoAssetChanged,
     required this.runWithLoading,
     required this.onRequestClose,
@@ -49,6 +50,7 @@ class SettingsMenu extends StatelessWidget {
   final Future<void> Function(double value) onPixResolutionChanged;
   final Future<void> Function(bool enabled) onPixShadesChanged;
   final Future<void> Function(double value) onPixGridLineWidthChanged;
+  final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
   final LoadingRunner runWithLoading;
   final VoidCallback onRequestClose;
@@ -114,6 +116,7 @@ class SettingsMenu extends StatelessWidget {
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
+                    onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -132,6 +135,7 @@ class SettingsMenu extends StatelessWidget {
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
+                    onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -150,6 +154,7 @@ class SettingsMenu extends StatelessWidget {
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
+                    onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -168,6 +173,7 @@ class SettingsMenu extends StatelessWidget {
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
+                    onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -186,6 +192,7 @@ class SettingsMenu extends StatelessWidget {
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
+                    onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -234,6 +241,7 @@ class _SettingsMenuBody extends StatelessWidget {
     required this.onPixResolutionChanged,
     required this.onPixShadesChanged,
     required this.onPixGridLineWidthChanged,
+    required this.onPixGestureControlsChanged,
     required this.onLogoAssetChanged,
     required this.runWithLoading,
     required this.onRequestClose,
@@ -250,6 +258,7 @@ class _SettingsMenuBody extends StatelessWidget {
   final Future<void> Function(double value) onPixResolutionChanged;
   final Future<void> Function(bool enabled) onPixShadesChanged;
   final Future<void> Function(double value) onPixGridLineWidthChanged;
+  final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
   final LoadingRunner runWithLoading;
   final VoidCallback onRequestClose;
@@ -385,6 +394,20 @@ class _SettingsMenuBody extends StatelessWidget {
               minHeight: 36,
               onPressed: () async {
                 await onPixShadesChanged(!shadesEnabled);
+              },
+            );
+          },
+        ),
+        ValueListenableBuilder<bool>(
+          valueListenable: os.viewportGesturesEnabledListenable,
+          builder: (context, gesturesEnabled, _) {
+            return PixelBorderButton(
+              label: "Gesture controls: ${gesturesEnabled ? 'ON' : 'OFF'}",
+              fillColor: menuFillDark,
+              textColor: menuTextLight,
+              minHeight: 36,
+              onPressed: () async {
+                await onPixGestureControlsChanged(!gesturesEnabled);
               },
             );
           },

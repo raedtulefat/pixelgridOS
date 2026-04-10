@@ -10,6 +10,8 @@ class FakePixelsLayer {
     required this.assetPath,
     this.priority = 0,
     this.mirroredX = false,
+    this.stagePosition = Offset.zero,
+    this.stageScale = 1,
   });
 
   /// Asset path as declared in Flutter assets (e.g. `assets/ui/logo.png`).
@@ -20,6 +22,12 @@ class FakePixelsLayer {
 
   /// Mirrors source sampling horizontally.
   final bool mirroredX;
+
+  /// Layer center in stage-space pixels.
+  final Offset stagePosition;
+
+  /// Layer size multiplier within stage-space.
+  final double stageScale;
 }
 
 /// Renders a constant-size fake-pixel grid and fills cells by sampling PNG data.
@@ -78,9 +86,22 @@ class FakePixelsEngine {
       <String, Future<void>>{};
 
   List<FakePixelsLayer> _layers = const <FakePixelsLayer>[];
+  double _stageScale = 1;
+  Offset _stageOffset = Offset.zero;
 
   void setLayers(List<FakePixelsLayer> layers) {
     _layers = List<FakePixelsLayer>.unmodifiable(layers);
+  }
+
+  void setStageTransform({
+    required double scale,
+    required Offset offset,
+  }) {
+    if (!scale.isFinite || scale <= 0) {
+      return;
+    }
+    _stageScale = scale;
+    _stageOffset = offset;
   }
 
   void render({
@@ -106,10 +127,11 @@ class FakePixelsEngine {
         continue;
       }
 
-      final sampleRect = _containCenteredRect(
+      final sampleRect = _stageRectForLayer(
         viewport: viewport,
         sourceWidth: alphaMask.width.toDouble(),
         sourceHeight: alphaMask.height.toDouble(),
+        layer: layer,
       );
       if (sampleRect.width <= 0 || sampleRect.height <= 0) {
         continue;
@@ -263,33 +285,31 @@ class FakePixelsEngine {
     );
   }
 
-  Rect _containCenteredRect({
+  Rect _stageRectForLayer({
     required Rect viewport,
     required double sourceWidth,
     required double sourceHeight,
+    required FakePixelsLayer layer,
   }) {
     if (sourceWidth <= 0 || sourceHeight <= 0) {
       return Rect.zero;
     }
 
-    final viewportAspect = viewport.width / viewport.height;
-    final sourceAspect = sourceWidth / sourceHeight;
+    final resolvedLayerScale =
+        (layer.stageScale.isFinite && layer.stageScale > 0)
+            ? layer.stageScale
+            : 1.0;
+    final targetWidth = sourceWidth * _stageScale * resolvedLayerScale;
+    final targetHeight = sourceHeight * _stageScale * resolvedLayerScale;
 
-    double targetWidth;
-    double targetHeight;
+    final stageCenter = viewport.center + _stageOffset;
+    final layerCenter = stageCenter + (layer.stagePosition * _stageScale);
 
-    if (sourceAspect > viewportAspect) {
-      targetWidth = viewport.width;
-      targetHeight = targetWidth / sourceAspect;
-    } else {
-      targetHeight = viewport.height;
-      targetWidth = targetHeight * sourceAspect;
-    }
-
-    final left = viewport.left + (viewport.width - targetWidth) / 2;
-    final top = viewport.top + (viewport.height - targetHeight) / 2;
-
-    return Rect.fromLTWH(left, top, targetWidth, targetHeight);
+    return Rect.fromCenter(
+      center: layerCenter,
+      width: targetWidth,
+      height: targetHeight,
+    );
   }
 
   void _ensureMaskLoaded(String assetPath) {
