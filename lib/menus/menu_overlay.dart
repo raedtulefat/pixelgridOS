@@ -1,0 +1,417 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'
+    show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
+import 'package:game_shell/os.dart';
+import 'package:game_shell/menus/menu_style.dart';
+import 'package:game_shell/menus/settings_menu.dart';
+import 'package:game_shell/settings/settings_applier.dart';
+import 'package:game_shell/settings/settings_controller.dart';
+import 'package:game_shell/settings/settings_storage.dart';
+import 'package:game_shell/ui/menu_column.dart';
+import 'package:game_shell/ui/modal.dart';
+import 'package:game_shell/ui/pixel/pixel_border_button.dart';
+
+const String _kTestHubFocusText =
+    'Focus: Shell home shows full-screen tiles, hamburger menu, and fake app screens.';
+const String _kQaPromptFallbackText =
+    'Focus: Open the hamburger menu, launch each fake app screen, and verify tile grid remains visible behind overlays.';
+
+enum _FakeScreen {
+  phone,
+  messages,
+  browser,
+  files,
+}
+
+class MenuOverlay extends StatefulWidget {
+  const MenuOverlay({
+    required this.os,
+  }) : super();
+
+  static const String testHubFocusText = _kTestHubFocusText;
+  static const String qaPromptFallbackText = _kQaPromptFallbackText;
+
+  final ShellOs os;
+
+  @override
+  State<MenuOverlay> createState() => _MenuOverlayState();
+}
+
+class _MenuOverlayState extends State<MenuOverlay> {
+  bool _showPrompt = true;
+  bool _showOsMenu = false;
+  bool _showSettingsModal = false;
+  bool _developerMode = false;
+  bool _debugEnabled = true;
+  _FakeScreen? _activeScreen;
+
+  final SettingsController _settings = SettingsController(SettingsStorage());
+  final SettingsApplier _settingsApplier = SettingsApplier();
+  late Future<void> _settingsLoadFuture;
+  late final VoidCallback _debugMenuListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _debugMenuListener = _handleDebugMenuVisibility;
+    widget.os.osMenuVisibilityListenable.addListener(_debugMenuListener);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    _settingsLoadFuture = _loadSettings();
+  }
+
+  @override
+  void didUpdateWidget(covariant MenuOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.os == widget.os) {
+      return;
+    }
+
+    oldWidget.os.osMenuVisibilityListenable.removeListener(_debugMenuListener);
+    widget.os.osMenuVisibilityListenable.addListener(_debugMenuListener);
+    _applySettingsToOs();
+  }
+
+  @override
+  void dispose() {
+    widget.os.osMenuVisibilityListenable.removeListener(_debugMenuListener);
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) {
+      return false;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_activeScreen != null) {
+        setState(() {
+          _activeScreen = null;
+        });
+        return true;
+      }
+
+      if (_showSettingsModal) {
+        _closeSettingsModal();
+        return true;
+      }
+
+      widget.os.toggleDebugOverlay(fromMenuOverlay: true);
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _loadSettings() async {
+    await _settings.load();
+    if (!mounted) {
+      return;
+    }
+    _applySettingsToOs();
+  }
+
+  Future<void> _updateSetting(SettingToggle setting, bool next,
+      {required bool persist}) async {
+    if (persist) {
+      await _settings.set(setting, next);
+    }
+    _applySettingsToOs();
+  }
+
+  void _applySettingsToOs() {
+    final settings = _settings.snapshot();
+    final developerMode = settings[SettingToggle.developerMode] ?? false;
+    final debugEnabled = settings[SettingToggle.debugEnabled] ?? true;
+    if (_developerMode != developerMode || _debugEnabled != debugEnabled) {
+      setState(() {
+        _developerMode = developerMode;
+        _debugEnabled = debugEnabled;
+      });
+    }
+    _settingsApplier.applyAll(
+      os: widget.os,
+      settings: settings,
+      setPromptBannerVisible: _setPromptBannerVisible,
+    );
+  }
+
+  void _setPromptBannerVisible(bool showPrompt) {
+    if (_showPrompt == showPrompt) {
+      return;
+    }
+    setState(() {
+      _showPrompt = showPrompt;
+    });
+  }
+
+  void _handleDebugMenuVisibility() {
+    final isVisible = widget.os.isOsMenuVisible;
+    if (_showOsMenu == isVisible) {
+      return;
+    }
+    setState(() {
+      _showOsMenu = isVisible;
+      if (isVisible) {
+        _showSettingsModal = false;
+      }
+    });
+  }
+
+  void _toggleOsMenu() {
+    widget.os.setOsMenuVisible(!_showOsMenu);
+  }
+
+  void _openSettingsModal() {
+    setState(() {
+      _showSettingsModal = true;
+      _showOsMenu = false;
+    });
+    widget.os.setOsMenuVisible(false);
+  }
+
+  void _closeSettingsModal() {
+    setState(() {
+      _showSettingsModal = false;
+    });
+  }
+
+  void _openFakeScreen(_FakeScreen screen) {
+    setState(() {
+      _activeScreen = screen;
+      _showOsMenu = false;
+    });
+    widget.os.setOsMenuVisible(false);
+  }
+
+  Future<T?> _runWithLoading<T>(Future<T> Function() task) async {
+    await _settingsLoadFuture;
+    return task();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          right: 16,
+          top: 16,
+          child: SafeArea(
+            minimum: const EdgeInsets.only(top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _SettingsButton(
+                  isOpen: _showOsMenu,
+                  onPressed: _toggleOsMenu,
+                ),
+                if (_showPrompt) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: 320,
+                    child: _DebugPromptBannerBody(text: _kQaPromptFallbackText),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (_showOsMenu)
+          Positioned.fill(
+            child: Modal(
+              title: 'Shell Menu',
+              onClose: _toggleOsMenu,
+              child: MenuColumn(
+                spacing: 12,
+                children: [
+                  PixelBorderButton(
+                    label: 'Phone',
+                    fillColor: menuFillPrimary,
+                    textColor: menuTextDark,
+                    onPressed: () => _openFakeScreen(_FakeScreen.phone),
+                  ),
+                  PixelBorderButton(
+                    label: 'Messages',
+                    fillColor: menuFillPrimary,
+                    textColor: menuTextDark,
+                    onPressed: () => _openFakeScreen(_FakeScreen.messages),
+                  ),
+                  PixelBorderButton(
+                    label: 'Browser',
+                    fillColor: menuFillPrimary,
+                    textColor: menuTextDark,
+                    onPressed: () => _openFakeScreen(_FakeScreen.browser),
+                  ),
+                  PixelBorderButton(
+                    label: 'Files',
+                    fillColor: menuFillPrimary,
+                    textColor: menuTextDark,
+                    onPressed: () => _openFakeScreen(_FakeScreen.files),
+                  ),
+                  PixelBorderButton(
+                    label: 'Settings',
+                    fillColor: menuFillDark,
+                    textColor: menuTextLight,
+                    onPressed: _openSettingsModal,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_showSettingsModal)
+          Positioned.fill(
+            child: Modal(
+              title: 'Settings',
+              onClose: _closeSettingsModal,
+              child: SettingsMenu(
+                os: widget.os,
+                developerMode: _developerMode,
+                debugEnabled: _debugEnabled,
+                showPrompt: _showPrompt,
+                onSettingChanged: (setting, value) {
+                  _updateSetting(setting, value ?? false, persist: true);
+                },
+                runWithLoading: _runWithLoading,
+                onRequestClose: _closeSettingsModal,
+              ),
+            ),
+          ),
+        if (_activeScreen != null)
+          Positioned.fill(
+            child: _FakeScreenOverlay(
+              screen: _activeScreen!,
+              onClose: () {
+                setState(() {
+                  _activeScreen = null;
+                });
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SettingsButton extends StatelessWidget {
+  const _SettingsButton({
+    required this.isOpen,
+    required this.onPressed,
+  });
+
+  final bool isOpen;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: isOpen ? 'Hide menu' : 'Show menu',
+      child: Material(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Icon(
+              isOpen ? Icons.menu_open : Icons.menu,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DebugPromptBannerBody extends StatelessWidget {
+  const _DebugPromptBannerBody({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xEB4A0E0E),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            height: 1.3,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+class _FakeScreenOverlay extends StatelessWidget {
+  const _FakeScreenOverlay({
+    required this.screen,
+    required this.onClose,
+  });
+
+  final _FakeScreen screen;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = switch (screen) {
+      _FakeScreen.phone => 'Phone',
+      _FakeScreen.messages => 'Messages',
+      _FakeScreen.browser => 'Browser',
+      _FakeScreen.files => 'Files',
+    };
+
+    return Container(
+      color: Colors.black.withValues(alpha: 0.85),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Modal(
+            title: '$title (Mock)',
+            onClose: onClose,
+            child: MenuColumn(
+              spacing: 12,
+              children: [
+                const Text(
+                  'Placeholder screen for shell prototyping.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70),
+                ),
+                PixelBorderButton(
+                  label: 'Primary action',
+                  fillColor: menuFillPrimary,
+                  textColor: menuTextDark,
+                  onPressed: () {},
+                ),
+                PixelBorderButton(
+                  label: 'Secondary action',
+                  fillColor: menuFillDark,
+                  textColor: menuTextLight,
+                  onPressed: () {},
+                ),
+                PixelBorderButton(
+                  label: 'Close',
+                  fillColor: menuFillDark,
+                  textColor: menuTextLight,
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
