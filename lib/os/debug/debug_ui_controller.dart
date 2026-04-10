@@ -14,7 +14,6 @@ class DebugUiState {
     this.pathFinder = false,
     this.shellLogs = false,
     this.surfaceOutline = false,
-    this.tileGrid = false,
     this.actorTouchBounds = false,
   });
 
@@ -29,7 +28,6 @@ class DebugUiState {
   final bool pathFinder;
   final bool shellLogs;
   final bool surfaceOutline;
-  final bool tileGrid;
   final bool actorTouchBounds;
 
   static const DebugUiState allEnabled = DebugUiState(
@@ -44,7 +42,6 @@ class DebugUiState {
     pathFinder: true,
     shellLogs: true,
     surfaceOutline: true,
-    tileGrid: true,
     actorTouchBounds: true,
   );
 
@@ -60,7 +57,6 @@ class DebugUiState {
       pathFinder ||
       shellLogs ||
       surfaceOutline ||
-      tileGrid ||
       actorTouchBounds;
 
   DebugUiState copyWith({
@@ -75,7 +71,6 @@ class DebugUiState {
     bool? pathFinder,
     bool? shellLogs,
     bool? surfaceOutline,
-    bool? tileGrid,
     bool? actorTouchBounds,
   }) {
     return DebugUiState(
@@ -90,7 +85,6 @@ class DebugUiState {
       pathFinder: pathFinder ?? this.pathFinder,
       shellLogs: shellLogs ?? this.shellLogs,
       surfaceOutline: surfaceOutline ?? this.surfaceOutline,
-      tileGrid: tileGrid ?? this.tileGrid,
       actorTouchBounds: actorTouchBounds ?? this.actorTouchBounds,
     );
   }
@@ -112,7 +106,6 @@ class DebugUiState {
         other.pathFinder == pathFinder &&
         other.shellLogs == shellLogs &&
         other.surfaceOutline == surfaceOutline &&
-        other.tileGrid == tileGrid &&
         other.actorTouchBounds == actorTouchBounds;
   }
 
@@ -129,7 +122,6 @@ class DebugUiState {
         pathFinder,
         shellLogs,
         surfaceOutline,
-        tileGrid,
         actorTouchBounds,
       );
 }
@@ -146,6 +138,5 @@ enum DebugUiLayer {
   pathFinder,
   shellLogs,
   surfaceOutline,
-  tileGrid,
   actorTouchBounds,
 }

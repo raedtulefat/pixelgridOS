@@ -167,11 +167,6 @@ class _SettingsMenuBody extends StatelessWidget {
             value: state.surfaceOutline,
             setting: SettingToggle.debugSurfaceOutline,
           ),
-          _SettingsOption(
-            label: "Tile grid",
-            value: state.tileGrid,
-            setting: SettingToggle.debugTileGrid,
-          ),
         ];
 
         return Padding(

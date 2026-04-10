@@ -29,5 +29,4 @@ const Map<SettingToggle, DebugUiLayer> _debugFlagForSetting =
   SettingToggle.debugInfoText: DebugUiLayer.infoText,
   SettingToggle.debugShellLogs: DebugUiLayer.shellLogs,
   SettingToggle.debugSurfaceOutline: DebugUiLayer.surfaceOutline,
-  SettingToggle.debugTileGrid: DebugUiLayer.tileGrid,
 };

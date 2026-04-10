@@ -7,7 +7,6 @@ enum SettingToggle {
   debugInfoText,
   debugShellLogs,
   debugSurfaceOutline,
-  debugTileGrid,
 }
 
 class SettingsController {

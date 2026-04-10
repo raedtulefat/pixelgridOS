@@ -10,24 +10,16 @@ import 'package:game_shell/os/os_mode.dart';
 class ShellOsImpl extends FlameGame {
   static final Paint _backgroundPaint = Paint()
     ..color = const Color(0xFF000000);
-  static final Paint _tileOutlinePaint = Paint()
-    ..color = const Color(0xFF2A2A2A)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.0;
   static final Paint _surfaceOutlinePaint = Paint()
     ..color = const Color(0xFF4A4A4A)
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.0;
-
-  static const int _rows = 20;
-  static const int _columns = 10;
 
   final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
   final ValueNotifier<bool> _osMenuVisible = ValueNotifier<bool>(false);
   final ValueNotifier<DebugUiState> _debugUiState = ValueNotifier<DebugUiState>(
     const DebugUiState(
       surfaceOutline: true,
-      tileGrid: true,
     ),
   );
 
@@ -41,8 +33,6 @@ class ShellOsImpl extends FlameGame {
 
     final screenRect = Rect.fromLTWH(0, 0, canvasSize.x, canvasSize.y);
     canvas.drawRect(screenRect, _backgroundPaint);
-
-    _renderTiles(canvas, screenRect);
 
     if (_debugUiState.value.surfaceOutline) {
       canvas.drawRect(screenRect.deflate(1), _surfaceOutlinePaint);
@@ -91,27 +81,6 @@ class ShellOsImpl extends FlameGame {
 
   void handlePointerCancel(PointerCancelEvent event) {}
 
-  void _renderTiles(Canvas canvas, Rect screenRect) {
-    if (!_debugUiState.value.tileGrid) {
-      return;
-    }
-
-    final tileWidth = screenRect.width / _columns;
-    final tileHeight = screenRect.height / _rows;
-
-    for (var row = 0; row < _rows; row += 1) {
-      for (var column = 0; column < _columns; column += 1) {
-        final tile = Rect.fromLTWH(
-          screenRect.left + column * tileWidth,
-          screenRect.top + row * tileHeight,
-          tileWidth,
-          tileHeight,
-        );
-        canvas.drawRect(tile, _tileOutlinePaint);
-      }
-    }
-  }
-
   DebugUiState _updatedDebugState(
     DebugUiState state,
     DebugUiLayer layer,
@@ -140,8 +109,6 @@ class ShellOsImpl extends FlameGame {
         return state.copyWith(shellLogs: enabled);
       case DebugUiLayer.surfaceOutline:
         return state.copyWith(surfaceOutline: enabled);
-      case DebugUiLayer.tileGrid:
-        return state.copyWith(tileGrid: enabled);
       case DebugUiLayer.actorTouchBounds:
         return state.copyWith(actorTouchBounds: enabled);
     }
