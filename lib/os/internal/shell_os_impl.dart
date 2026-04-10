@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart' show PointerSignalEvent;
 import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart'
     show PointerCancelEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent;
+import 'package:game_shell/fake_pixels/fake_pixels_config.dart';
+import 'package:game_shell/fake_pixels/fake_pixels_engine.dart';
 import 'package:game_shell/os/debug/debug_ui_controller.dart';
 import 'package:game_shell/os/os_mode.dart';
 
@@ -15,6 +17,13 @@ class ShellOsImpl extends FlameGame {
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.0;
 
+  final FakePixelsEngine _fakePixels = FakePixelsEngine(
+    cellSize: defaultFakePixelsConfig.cellSize,
+    alphaThreshold: defaultFakePixelsConfig.alphaThreshold,
+    lineColor: defaultFakePixelsConfig.lineColor,
+    lineStrokeWidth: defaultFakePixelsConfig.lineStrokeWidth,
+  );
+
   final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
   final ValueNotifier<bool> _osMenuVisible = ValueNotifier<bool>(false);
   final ValueNotifier<DebugUiState> _debugUiState = ValueNotifier<DebugUiState>(
@@ -22,6 +31,12 @@ class ShellOsImpl extends FlameGame {
       surfaceOutline: true,
     ),
   );
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    _fakePixels.setLayers(defaultFakePixelsConfig.layers);
+  }
 
   @override
   void render(Canvas canvas) {
@@ -33,6 +48,11 @@ class ShellOsImpl extends FlameGame {
 
     final screenRect = Rect.fromLTWH(0, 0, canvasSize.x, canvasSize.y);
     canvas.drawRect(screenRect, _backgroundPaint);
+
+    _fakePixels.render(
+      canvas: canvas,
+      viewport: screenRect,
+    );
 
     if (_debugUiState.value.surfaceOutline) {
       canvas.drawRect(screenRect.deflate(1), _surfaceOutlinePaint);
