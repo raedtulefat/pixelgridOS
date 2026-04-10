@@ -676,7 +676,6 @@ class _SettingsMenuBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SettingsSectionHeader("Pi"),
-        // Copied shell UI shape from roguechoices kanban tab; intentionally no-op.
         TextField(
           controller: controller,
           minLines: 6,
