@@ -156,6 +156,10 @@ class _MenuOverlayState extends State<MenuOverlay> {
       SettingKey.fakePixelsUseShades,
       defaultValue: true,
     );
+    final pixGridLineWidth = _settings.getDoubleByKey(
+      SettingKey.fakePixelsGridLineWidth,
+      defaultValue: 0.25,
+    );
 
     final fallbackLogoAsset = LogoAssetCatalog.fallbackFrom(_logoAssetOptions);
     final savedLogoAsset = _settings.getStringByKey(
@@ -169,7 +173,8 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
     widget.os
       ..setFakePixelsCellSize(pixResolution)
-      ..setFakePixelsShadedColorsEnabled(pixShades);
+      ..setFakePixelsShadedColorsEnabled(pixShades)
+      ..setFakePixelsGridLineWidth(pixGridLineWidth);
 
     if (resolvedLogoAsset != null) {
       widget.os.setFakePixelsLogoAsset(resolvedLogoAsset);
@@ -373,6 +378,13 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   await _settings.setBoolByKey(
                     SettingKey.fakePixelsUseShades,
                     enabled,
+                  );
+                },
+                onPixGridLineWidthChanged: (value) async {
+                  widget.os.setFakePixelsGridLineWidth(value);
+                  await _settings.setDoubleByKey(
+                    SettingKey.fakePixelsGridLineWidth,
+                    value,
                   );
                 },
                 onLogoAssetChanged: (assetPath) async {

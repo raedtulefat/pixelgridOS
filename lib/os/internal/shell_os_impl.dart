@@ -27,6 +27,8 @@ class ShellOsImpl extends FlameGame {
   final ValueNotifier<double> _fakePixelsCellSize =
       ValueNotifier<double>(defaultFakePixelsConfig.cellSize);
   final ValueNotifier<bool> _fakePixelsShadedColors = ValueNotifier<bool>(true);
+  final ValueNotifier<double> _fakePixelsGridLineWidth =
+      ValueNotifier<double>(defaultFakePixelsConfig.lineStrokeWidth);
   final ValueNotifier<String> _fakePixelsLogoAsset = ValueNotifier<String>(
     defaultFakePixelsConfig.layers.first.assetPath,
   );
@@ -88,6 +90,11 @@ class ShellOsImpl extends FlameGame {
 
   bool get fakePixelsShadedColorsEnabled => _fakePixelsShadedColors.value;
 
+  ValueListenable<double> get fakePixelsGridLineWidthListenable =>
+      _fakePixelsGridLineWidth;
+
+  double get fakePixelsGridLineWidth => _fakePixelsGridLineWidth.value;
+
   ValueListenable<String> get fakePixelsLogoAssetListenable =>
       _fakePixelsLogoAsset;
 
@@ -122,6 +129,17 @@ class ShellOsImpl extends FlameGame {
       return;
     }
     _fakePixelsShadedColors.value = enabled;
+  }
+
+  void setFakePixelsGridLineWidth(double width) {
+    if (!width.isFinite || width <= 0) {
+      return;
+    }
+    _fakePixels.lineStrokeWidth = width;
+    if (_fakePixelsGridLineWidth.value == width) {
+      return;
+    }
+    _fakePixelsGridLineWidth.value = width;
   }
 
   void setFakePixelsLogoAsset(String assetPath) {

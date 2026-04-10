@@ -29,6 +29,7 @@ class SettingsMenu extends StatelessWidget {
     required this.onSettingChanged,
     required this.onPixResolutionChanged,
     required this.onPixShadesChanged,
+    required this.onPixGridLineWidthChanged,
     required this.onLogoAssetChanged,
     required this.runWithLoading,
     required this.onRequestClose,
@@ -47,6 +48,7 @@ class SettingsMenu extends StatelessWidget {
   final void Function(SettingToggle, bool? value) onSettingChanged;
   final Future<void> Function(double value) onPixResolutionChanged;
   final Future<void> Function(bool enabled) onPixShadesChanged;
+  final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
   final LoadingRunner runWithLoading;
   final VoidCallback onRequestClose;
@@ -111,6 +113,7 @@ class SettingsMenu extends StatelessWidget {
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
+                    onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -128,6 +131,7 @@ class SettingsMenu extends StatelessWidget {
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
+                    onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -145,6 +149,7 @@ class SettingsMenu extends StatelessWidget {
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
+                    onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -162,6 +167,7 @@ class SettingsMenu extends StatelessWidget {
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
+                    onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -179,6 +185,7 @@ class SettingsMenu extends StatelessWidget {
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
+                    onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
                     onRequestClose: onRequestClose,
                     runWithLoading: runWithLoading,
@@ -226,6 +233,7 @@ class _SettingsMenuBody extends StatelessWidget {
     required this.onSettingChanged,
     required this.onPixResolutionChanged,
     required this.onPixShadesChanged,
+    required this.onPixGridLineWidthChanged,
     required this.onLogoAssetChanged,
     required this.runWithLoading,
     required this.onRequestClose,
@@ -241,6 +249,7 @@ class _SettingsMenuBody extends StatelessWidget {
   final void Function(SettingToggle, bool? value) onSettingChanged;
   final Future<void> Function(double value) onPixResolutionChanged;
   final Future<void> Function(bool enabled) onPixShadesChanged;
+  final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
   final LoadingRunner runWithLoading;
   final VoidCallback onRequestClose;
@@ -380,6 +389,21 @@ class _SettingsMenuBody extends StatelessWidget {
             );
           },
         ),
+        ValueListenableBuilder<double>(
+          valueListenable: os.fakePixelsGridLineWidthListenable,
+          builder: (context, lineWidth, _) {
+            return PixelBorderButton(
+              label: "Grid width: ${_formatCellSize(lineWidth)}",
+              fillColor: menuFillDark,
+              textColor: menuTextLight,
+              minHeight: 36,
+              onPressed: () => _openPixGridWidthModal(
+                context,
+                initialGridWidth: lineWidth,
+              ),
+            );
+          },
+        ),
         PixelBorderButton(
           label: "Refresh",
           fillColor: menuFillPrimary,
@@ -448,6 +472,88 @@ class _SettingsMenuBody extends StatelessWidget {
   String _assetLabel(String assetPath) {
     final fileName = assetPath.split('/').last;
     return fileName;
+  }
+
+  Future<void> _openPixGridWidthModal(
+    BuildContext context, {
+    required double initialGridWidth,
+  }) async {
+    final controller = TextEditingController(
+      text: _formatCellSize(initialGridWidth),
+    );
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Material(
+              color: Colors.transparent,
+              child: Modal(
+                title: 'Pix: Grid width',
+                maxWidth: 420,
+                onClose: () => Navigator.of(dialogContext).pop(),
+                child: MenuColumn(
+                  spacing: 8,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: false,
+                      ),
+                      cursorColor: menuTextLight,
+                      style: const TextStyle(
+                        color: menuTextLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Enter grid line width (e.g. 0.25)',
+                        hintStyle: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                        errorText: errorText,
+                        filled: true,
+                        fillColor: menuFillDark,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(0),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    PixelBorderButton(
+                      label: 'Apply',
+                      fillColor: menuFillPrimary,
+                      textColor: menuTextDark,
+                      minHeight: 40,
+                      onPressed: () async {
+                        final parsed = double.tryParse(controller.text.trim());
+                        if (parsed == null || !parsed.isFinite || parsed <= 0) {
+                          setModalState(() {
+                            errorText = 'Enter a number greater than 0';
+                          });
+                          return;
+                        }
+                        await onPixGridLineWidthChanged(parsed);
+                        if (!context.mounted) {
+                          return;
+                        }
+                        Navigator.of(dialogContext).pop();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _openPixResolutionModal(

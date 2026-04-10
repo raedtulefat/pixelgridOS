@@ -22,7 +22,7 @@ const FakePixelsConfig defaultFakePixelsConfig = FakePixelsConfig(
   cellSize: 16,
   alphaThreshold: 24,
   lineColor: Color(0xFF000000),
-  lineStrokeWidth: 0.125,
+  lineStrokeWidth: 0.25,
   layers: <FakePixelsLayer>[
     FakePixelsLayer(assetPath: 'assets/ui/logo/logo1.png'),
   ],

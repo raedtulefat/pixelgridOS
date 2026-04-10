@@ -28,9 +28,10 @@ class FakePixelsEngine {
     double cellSize = 16,
     this.alphaThreshold = 24,
     Color lineColor = const Color(0xFF000000),
-    this.lineStrokeWidth = 0.125,
+    double lineStrokeWidth = 0.125,
     bool useShadedColors = true,
   })  : _cellSize = cellSize,
+        _lineStrokeWidth = lineStrokeWidth,
         _useShadedColors = useShadedColors,
         _linePaint = Paint()
           ..color = lineColor
@@ -55,10 +56,19 @@ class FakePixelsEngine {
     _useShadedColors = value;
   }
 
+  double get lineStrokeWidth => _lineStrokeWidth;
+
+  set lineStrokeWidth(double value) {
+    if (!value.isFinite || value <= 0) {
+      return;
+    }
+    _lineStrokeWidth = value;
+  }
+
   double _cellSize;
+  double _lineStrokeWidth;
   bool _useShadedColors;
   final int alphaThreshold;
-  final double lineStrokeWidth;
 
   final Paint _linePaint;
   final Paint _fillPaint;
@@ -135,7 +145,7 @@ class FakePixelsEngine {
       );
     }
 
-    _linePaint.strokeWidth = lineStrokeWidth;
+    _linePaint.strokeWidth = _resolvedLineStrokeWidth();
 
     for (var column = startColumn; column <= endColumn; column += 1) {
       final x = viewport.left + column * cellSize;
@@ -334,6 +344,13 @@ class FakePixelsEngine {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     return frame.image;
+  }
+
+  double _resolvedLineStrokeWidth() {
+    final views = ui.PlatformDispatcher.instance.views;
+    final dpr = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    final minimumVisibleStroke = dpr <= 0 ? 1.0 : (1.0 / dpr);
+    return math.max(lineStrokeWidth, minimumVisibleStroke);
   }
 }
 
