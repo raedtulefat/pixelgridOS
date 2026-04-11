@@ -447,18 +447,10 @@ class _MenuOverlayState extends State<MenuOverlay> {
                           zoomLabel: zoomLabel,
                           pixelSizeLabel: pixelSizeLabel,
                           onPressed: () {
-                            if (isDefault) {
-                              if (!_showViewportZoomControls) {
-                                setState(() {
-                                  _showViewportZoomControls = true;
-                                });
-                              }
-                              return;
-                            }
                             setState(() {
-                              _showViewportZoomControls = false;
+                              _showViewportZoomControls =
+                                  !_showViewportZoomControls;
                             });
-                            widget.os.resetViewportTransform();
                           },
                           onZoomIn: widget.os.zoomViewportInStep,
                           onZoomOut: widget.os.zoomViewportOutStep,
