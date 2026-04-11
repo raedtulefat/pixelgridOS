@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 
 import "package:pixelgrid/os.dart";
-import "package:pixelgrid/menus/menu_overlay_types.dart";
 import "package:pixelgrid/menus/menu_style.dart";
 import "package:pixelgrid/settings/settings_controller.dart";
 import "package:pixelgrid/ui/menu_column.dart";
@@ -19,8 +18,6 @@ enum _SettingsTab {
 class SettingsMenu extends StatelessWidget {
   const SettingsMenu({
     required this.os,
-    required this.developerMode,
-    required this.debugEnabled,
     required this.showPrompt,
     required this.logoAssetOptions,
     required this.selectedLogoAsset,
@@ -32,15 +29,11 @@ class SettingsMenu extends StatelessWidget {
     required this.onPixGridLineWidthChanged,
     required this.onPixGestureControlsChanged,
     required this.onLogoAssetChanged,
-    required this.runWithLoading,
-    required this.onRequestClose,
   });
 
   static const int tabCount = 5;
 
   final ShellOs os;
-  final bool developerMode;
-  final bool debugEnabled;
   final bool showPrompt;
   final List<String> logoAssetOptions;
   final String? selectedLogoAsset;
@@ -52,8 +45,6 @@ class SettingsMenu extends StatelessWidget {
   final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
-  final LoadingRunner runWithLoading;
-  final VoidCallback onRequestClose;
 
   @override
   Widget build(BuildContext context) {
@@ -107,8 +98,6 @@ class SettingsMenu extends StatelessWidget {
                   child: _SettingsMenuBody(
                     tab: _SettingsTab.config,
                     os: os,
-                    developerMode: developerMode,
-                    debugEnabled: debugEnabled,
                     showPrompt: showPrompt,
                     logoAssetOptions: logoAssetOptions,
                     selectedLogoAsset: selectedLogoAsset,
@@ -118,16 +107,12 @@ class SettingsMenu extends StatelessWidget {
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
-                    onRequestClose: onRequestClose,
-                    runWithLoading: runWithLoading,
                   ),
                 ),
                 SingleChildScrollView(
                   child: _SettingsMenuBody(
                     tab: _SettingsTab.debug,
                     os: os,
-                    developerMode: developerMode,
-                    debugEnabled: debugEnabled,
                     showPrompt: showPrompt,
                     logoAssetOptions: logoAssetOptions,
                     selectedLogoAsset: selectedLogoAsset,
@@ -137,16 +122,12 @@ class SettingsMenu extends StatelessWidget {
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
-                    onRequestClose: onRequestClose,
-                    runWithLoading: runWithLoading,
                   ),
                 ),
                 SingleChildScrollView(
                   child: _SettingsMenuBody(
                     tab: _SettingsTab.pix,
                     os: os,
-                    developerMode: developerMode,
-                    debugEnabled: debugEnabled,
                     showPrompt: showPrompt,
                     logoAssetOptions: logoAssetOptions,
                     selectedLogoAsset: selectedLogoAsset,
@@ -156,16 +137,12 @@ class SettingsMenu extends StatelessWidget {
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
-                    onRequestClose: onRequestClose,
-                    runWithLoading: runWithLoading,
                   ),
                 ),
                 SingleChildScrollView(
                   child: _SettingsMenuBody(
                     tab: _SettingsTab.assets,
                     os: os,
-                    developerMode: developerMode,
-                    debugEnabled: debugEnabled,
                     showPrompt: showPrompt,
                     logoAssetOptions: logoAssetOptions,
                     selectedLogoAsset: selectedLogoAsset,
@@ -175,16 +152,12 @@ class SettingsMenu extends StatelessWidget {
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
-                    onRequestClose: onRequestClose,
-                    runWithLoading: runWithLoading,
                   ),
                 ),
                 SingleChildScrollView(
                   child: _SettingsMenuBody(
                     tab: _SettingsTab.pi,
                     os: os,
-                    developerMode: developerMode,
-                    debugEnabled: debugEnabled,
                     showPrompt: showPrompt,
                     logoAssetOptions: logoAssetOptions,
                     selectedLogoAsset: selectedLogoAsset,
@@ -194,8 +167,6 @@ class SettingsMenu extends StatelessWidget {
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onLogoAssetChanged: onLogoAssetChanged,
-                    onRequestClose: onRequestClose,
-                    runWithLoading: runWithLoading,
                   ),
                 ),
               ],
@@ -232,8 +203,6 @@ class _SettingsMenuBody extends StatelessWidget {
   const _SettingsMenuBody({
     required this.tab,
     required this.os,
-    required this.developerMode,
-    required this.debugEnabled,
     required this.showPrompt,
     required this.logoAssetOptions,
     required this.selectedLogoAsset,
@@ -243,14 +212,10 @@ class _SettingsMenuBody extends StatelessWidget {
     required this.onPixGridLineWidthChanged,
     required this.onPixGestureControlsChanged,
     required this.onLogoAssetChanged,
-    required this.runWithLoading,
-    required this.onRequestClose,
   });
 
   final _SettingsTab tab;
   final ShellOs os;
-  final bool developerMode;
-  final bool debugEnabled;
   final bool showPrompt;
   final List<String> logoAssetOptions;
   final String? selectedLogoAsset;
@@ -260,74 +225,37 @@ class _SettingsMenuBody extends StatelessWidget {
   final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onLogoAssetChanged;
-  final LoadingRunner runWithLoading;
-  final VoidCallback onRequestClose;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<DebugUiState>(
-      valueListenable: os.debugUiListenable,
-      builder: (context, state, _) {
-        final options = <_SettingsOption>[
-          _SettingsOption(
-            label: "Debug info",
-            value: state.infoText,
-            setting: SettingToggle.debugInfoText,
-          ),
-        ];
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: switch (tab) {
-            _SettingsTab.config => _buildConfigTab(context, state),
-            _SettingsTab.debug => _buildDebugTab(context, options),
-            _SettingsTab.pix => _buildPixTab(context),
-            _SettingsTab.assets => _buildAssetsTab(context),
-            _SettingsTab.pi => _buildPiTab(context),
-          },
-        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: switch (tab) {
+        _SettingsTab.config => _buildConfigTab(context),
+        _SettingsTab.debug => _buildDebugTab(context),
+        _SettingsTab.pix => _buildPixTab(context),
+        _SettingsTab.assets => _buildAssetsTab(context),
+        _SettingsTab.pi => _buildPiTab(context),
       },
     );
   }
 
-  Widget _buildConfigTab(
-    BuildContext context,
-    DebugUiState state,
-  ) {
-    return MenuColumn(
+  Widget _buildConfigTab(BuildContext context) {
+    return const MenuColumn(
       spacing: 8,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SettingsSectionHeader("Configurations"),
-        _SettingsCheckboxRow(
-          label: "Shell logs",
-          value: state.shellLogs,
-          onChanged: (value) => onSettingChanged(
-            SettingToggle.debugShellLogs,
-            value,
-          ),
-        ),
+        _SettingsSectionHeader("Configurations"),
       ],
     );
   }
 
-  Widget _buildDebugTab(
-    BuildContext context,
-    List<_SettingsOption> options,
-  ) {
+  Widget _buildDebugTab(BuildContext context) {
     return MenuColumn(
       spacing: 8,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SettingsSectionHeader("Debug settings"),
-        _SettingsCheckboxRow(
-          label: "Developer mode",
-          value: developerMode,
-          onChanged: (value) => onSettingChanged(
-            SettingToggle.developerMode,
-            value,
-          ),
-        ),
         _SettingsCheckboxRow(
           label: "QA focus",
           value: showPrompt,
@@ -336,12 +264,6 @@ class _SettingsMenuBody extends StatelessWidget {
             value,
           ),
         ),
-        for (final option in options)
-          _SettingsCheckboxRow(
-            label: option.label,
-            value: option.value,
-            onChanged: (value) => onSettingChanged(option.setting, value),
-          ),
       ],
     );
   }
@@ -410,18 +332,6 @@ class _SettingsMenuBody extends StatelessWidget {
             );
           },
         ),
-        PixelBorderButton(
-          label: "Refresh",
-          fillColor: menuFillPrimary,
-          textColor: menuTextDark,
-          minHeight: 36,
-          onPressed: () async {
-            onRequestClose();
-            await runWithLoading(
-              () => os.refreshShell(),
-            );
-          },
-        ),
       ],
     );
   }
@@ -459,18 +369,6 @@ class _SettingsMenuBody extends StatelessWidget {
                 await onLogoAssetChanged(option);
               },
             ),
-        PixelBorderButton(
-          label: "Refresh",
-          fillColor: menuFillPrimary,
-          textColor: menuTextDark,
-          minHeight: 36,
-          onPressed: () async {
-            onRequestClose();
-            await runWithLoading(
-              () => os.refreshShell(),
-            );
-          },
-        ),
       ],
     );
   }
@@ -693,18 +591,6 @@ class _SettingsMenuBody extends StatelessWidget {
       ],
     );
   }
-}
-
-class _SettingsOption {
-  const _SettingsOption({
-    required this.label,
-    required this.value,
-    required this.setting,
-  });
-
-  final String label;
-  final bool value;
-  final SettingToggle setting;
 }
 
 class _SettingsCheckboxRow extends StatelessWidget {

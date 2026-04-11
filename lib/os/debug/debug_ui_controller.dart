@@ -8,11 +8,9 @@ class DebugUiState {
     this.wallHighlights = false,
     this.walkables = false,
     this.tileInfo = false,
-    this.infoText = false,
     this.healthBars = false,
     this.playerTileHighlight = false,
     this.pathFinder = false,
-    this.shellLogs = false,
     this.actorTouchBounds = false,
   });
 
@@ -21,11 +19,9 @@ class DebugUiState {
   final bool wallHighlights;
   final bool walkables;
   final bool tileInfo;
-  final bool infoText;
   final bool healthBars;
   final bool playerTileHighlight;
   final bool pathFinder;
-  final bool shellLogs;
   final bool actorTouchBounds;
 
   static const DebugUiState allEnabled = DebugUiState(
@@ -34,11 +30,9 @@ class DebugUiState {
     wallHighlights: true,
     walkables: true,
     tileInfo: true,
-    infoText: true,
     healthBars: true,
     playerTileHighlight: true,
     pathFinder: true,
-    shellLogs: true,
     actorTouchBounds: true,
   );
 
@@ -48,11 +42,9 @@ class DebugUiState {
       wallHighlights ||
       walkables ||
       tileInfo ||
-      infoText ||
       healthBars ||
       playerTileHighlight ||
       pathFinder ||
-      shellLogs ||
       actorTouchBounds;
 
   DebugUiState copyWith({
@@ -61,11 +53,9 @@ class DebugUiState {
     bool? wallHighlights,
     bool? walkables,
     bool? tileInfo,
-    bool? infoText,
     bool? healthBars,
     bool? playerTileHighlight,
     bool? pathFinder,
-    bool? shellLogs,
     bool? actorTouchBounds,
   }) {
     return DebugUiState(
@@ -74,11 +64,9 @@ class DebugUiState {
       wallHighlights: wallHighlights ?? this.wallHighlights,
       walkables: walkables ?? this.walkables,
       tileInfo: tileInfo ?? this.tileInfo,
-      infoText: infoText ?? this.infoText,
       healthBars: healthBars ?? this.healthBars,
       playerTileHighlight: playerTileHighlight ?? this.playerTileHighlight,
       pathFinder: pathFinder ?? this.pathFinder,
-      shellLogs: shellLogs ?? this.shellLogs,
       actorTouchBounds: actorTouchBounds ?? this.actorTouchBounds,
     );
   }
@@ -94,11 +82,9 @@ class DebugUiState {
         other.wallHighlights == wallHighlights &&
         other.walkables == walkables &&
         other.tileInfo == tileInfo &&
-        other.infoText == infoText &&
         other.healthBars == healthBars &&
         other.playerTileHighlight == playerTileHighlight &&
         other.pathFinder == pathFinder &&
-        other.shellLogs == shellLogs &&
         other.actorTouchBounds == actorTouchBounds;
   }
 
@@ -109,11 +95,9 @@ class DebugUiState {
         wallHighlights,
         walkables,
         tileInfo,
-        infoText,
         healthBars,
         playerTileHighlight,
         pathFinder,
-        shellLogs,
         actorTouchBounds,
       );
 }
@@ -124,10 +108,8 @@ enum DebugUiLayer {
   wallHighlights,
   walkables,
   tileInfo,
-  infoText,
   healthBars,
   playerTileHighlight,
   pathFinder,
-  shellLogs,
   actorTouchBounds,
 }

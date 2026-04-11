@@ -1,11 +1,7 @@
 import 'package:pixelgrid/settings/settings_storage.dart';
 
 enum SettingToggle {
-  developerMode,
   promptBanner,
-  debugEnabled,
-  debugInfoText,
-  debugShellLogs,
 }
 
 class SettingsController {

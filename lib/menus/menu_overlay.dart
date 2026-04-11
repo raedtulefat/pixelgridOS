@@ -38,8 +38,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
   bool _showPrompt = false;
   bool _showOsMenu = false;
   bool _showSettingsModal = false;
-  bool _developerMode = false;
-  bool _debugEnabled = true;
   int _settingsTabIndex = 0;
   List<String> _logoAssetOptions = const <String>[];
   String? _selectedLogoAsset;
@@ -47,7 +45,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
   final SettingsController _settings = SettingsController(SettingsStorage());
   final SettingsApplier _settingsApplier = SettingsApplier();
-  late Future<void> _settingsLoadFuture;
   late final VoidCallback _debugMenuListener;
 
   @override
@@ -56,7 +53,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
     _debugMenuListener = _handleDebugMenuVisibility;
     widget.os.osMenuVisibilityListenable.addListener(_debugMenuListener);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    _settingsLoadFuture = _loadSettings();
+    _loadSettings();
   }
 
   @override
@@ -136,20 +133,14 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
   void _applySettingsToOs() {
     final settings = _settings.snapshot();
-    final developerMode = settings[SettingToggle.developerMode] ?? false;
-    final debugEnabled = settings[SettingToggle.debugEnabled] ?? true;
     final storedTabIndex = _settings.getIntByKey(
       SettingKey.settingsLastOpenTab,
       defaultValue: 0,
     );
     final resolvedTabIndex =
         storedTabIndex.clamp(0, SettingsMenu.tabCount - 1).toInt();
-    if (_developerMode != developerMode ||
-        _debugEnabled != debugEnabled ||
-        _settingsTabIndex != resolvedTabIndex) {
+    if (_settingsTabIndex != resolvedTabIndex) {
       setState(() {
-        _developerMode = developerMode;
-        _debugEnabled = debugEnabled;
         _settingsTabIndex = resolvedTabIndex;
       });
     }
@@ -209,7 +200,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
     }
 
     _settingsApplier.applyAll(
-      os: widget.os,
       settings: settings,
       setPromptBannerVisible: _setPromptBannerVisible,
     );
@@ -293,11 +283,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
     return _logoAssetOptions.first;
   }
 
-  Future<T?> _runWithLoading<T>(Future<T> Function() task) async {
-    await _settingsLoadFuture;
-    return task();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -351,8 +336,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
               onClose: _closeSettingsModal,
               child: SettingsMenu(
                 os: widget.os,
-                developerMode: _developerMode,
-                debugEnabled: _debugEnabled,
                 showPrompt: _showPrompt,
                 logoAssetOptions: _logoAssetOptions,
                 selectedLogoAsset: _selectedLogoAsset,
@@ -414,8 +397,6 @@ class _MenuOverlayState extends State<MenuOverlay> {
                     _selectedLogoAsset = assetPath;
                   });
                 },
-                runWithLoading: _runWithLoading,
-                onRequestClose: _closeSettingsModal,
               ),
             ),
           ),
@@ -451,6 +432,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                               _showViewportZoomControls =
                                   !_showViewportZoomControls;
                             });
+                            widget.os.resetViewportTransform();
                           },
                           onZoomIn: widget.os.zoomViewportInStep,
                           onZoomOut: widget.os.zoomViewportOutStep,
@@ -557,9 +539,9 @@ class _ViewportResetButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _ViewportIconButton(
-                tooltip: 'Zoom in',
-                icon: Icons.add,
-                onPressed: onZoomIn,
+                tooltip: 'Zoom out',
+                icon: Icons.remove,
+                onPressed: onZoomOut,
               ),
               const SizedBox(width: 8),
               Text(
@@ -572,9 +554,9 @@ class _ViewportResetButton extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _ViewportIconButton(
-                tooltip: 'Zoom out',
-                icon: Icons.remove,
-                onPressed: onZoomOut,
+                tooltip: 'Zoom in',
+                icon: Icons.add,
+                onPressed: onZoomIn,
               ),
             ],
           ),
@@ -583,9 +565,9 @@ class _ViewportResetButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _ViewportIconButton(
-                tooltip: 'Increase pixel size',
-                icon: Icons.add,
-                onPressed: onPixelSizeIncrease,
+                tooltip: 'Decrease pixel size',
+                icon: Icons.remove,
+                onPressed: onPixelSizeDecrease,
               ),
               const SizedBox(width: 8),
               Text(
@@ -598,9 +580,9 @@ class _ViewportResetButton extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _ViewportIconButton(
-                tooltip: 'Decrease pixel size',
-                icon: Icons.remove,
-                onPressed: onPixelSizeDecrease,
+                tooltip: 'Increase pixel size',
+                icon: Icons.add,
+                onPressed: onPixelSizeIncrease,
               ),
             ],
           ),

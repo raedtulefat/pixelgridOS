@@ -394,16 +394,12 @@ class ShellOsImpl extends FlameGame {
         return state.copyWith(walkables: enabled);
       case DebugUiLayer.tileInfo:
         return state.copyWith(tileInfo: enabled);
-      case DebugUiLayer.infoText:
-        return state.copyWith(infoText: enabled);
       case DebugUiLayer.healthBars:
         return state.copyWith(healthBars: enabled);
       case DebugUiLayer.playerTileHighlight:
         return state.copyWith(playerTileHighlight: enabled);
       case DebugUiLayer.pathFinder:
         return state.copyWith(pathFinder: enabled);
-      case DebugUiLayer.shellLogs:
-        return state.copyWith(shellLogs: enabled);
       case DebugUiLayer.actorTouchBounds:
         return state.copyWith(actorTouchBounds: enabled);
     }
