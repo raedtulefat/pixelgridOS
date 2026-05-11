@@ -1,14 +1,14 @@
 import 'package:flame/flame.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
-import 'package:pixelgrid/os.dart';
-import 'package:pixelgrid/menus/menu_overlay.dart';
+import 'package:pixelgrid/pixelgrid.dart';
+import 'package:pixelgrid/pixelgrid/control_center/control_center_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Flame.device.fullScreen();
 
-  final os = ShellOs();
+  final pixelGrid = PixelGrid();
 
   runApp(
     MaterialApp(
@@ -25,14 +25,14 @@ void main() {
           children: [
             Listener(
               behavior: HitTestBehavior.opaque,
-              onPointerSignal: (event) => os.handlePointerSignal(event),
-              onPointerDown: os.handlePointerDown,
-              onPointerMove: os.handlePointerMove,
-              onPointerUp: os.handlePointerUp,
-              onPointerCancel: os.handlePointerCancel,
-              child: GameWidget(game: os),
+              onPointerSignal: (event) => pixelGrid.handlePointerSignal(event),
+              onPointerDown: pixelGrid.handlePointerDown,
+              onPointerMove: pixelGrid.handlePointerMove,
+              onPointerUp: pixelGrid.handlePointerUp,
+              onPointerCancel: pixelGrid.handlePointerCancel,
+              child: GameWidget(game: pixelGrid),
             ),
-            MenuOverlay(os: os),
+            ControlCenterOverlay(pixelGrid: pixelGrid),
           ],
         ),
       ),

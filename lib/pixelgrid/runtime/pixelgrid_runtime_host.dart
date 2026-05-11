@@ -5,12 +5,12 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart'
     show PointerCancelEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent;
-import 'package:pixelgrid/fake_pixels/fake_pixels_config.dart';
-import 'package:pixelgrid/fake_pixels/fake_pixels_engine.dart';
-import 'package:pixelgrid/os/debug/debug_ui_controller.dart';
-import 'package:pixelgrid/os/os_mode.dart';
+import 'package:pixelgrid/pixelgrid/fake_pixels/fake_pixels_config.dart';
+import 'package:pixelgrid/pixelgrid/fake_pixels/fake_pixels_engine.dart';
+import 'package:pixelgrid/pixelgrid/runtime/debug_ui_controller.dart';
+import 'package:pixelgrid/canvas/canvas_mode.dart';
 
-class ShellOsImpl extends FlameGame {
+class PixelGridRuntimeHost extends FlameGame {
   static final Paint _backgroundPaint = Paint()
     ..color = const Color(0xFF000000);
   final FakePixelsEngine _fakePixels = FakePixelsEngine(
@@ -26,15 +26,22 @@ class ShellOsImpl extends FlameGame {
       ValueNotifier<bool>(false);
   final ValueNotifier<double> _fakePixelsGridLineWidth =
       ValueNotifier<double>(defaultFakePixelsConfig.lineStrokeWidth);
-  final ValueNotifier<String> _fakePixelsLogoAsset = ValueNotifier<String>(
-    defaultFakePixelsConfig.layers.first.assetPath,
+  final ValueNotifier<String> _fakePixelsBaseAsset = ValueNotifier<String>(
+    _layerById(FakePixelsLayerId.stageBase).assetPath,
+  );
+  final ValueNotifier<String> _fakePixelsUiAsset = ValueNotifier<String>(
+    _layerById(FakePixelsLayerId.stageUi).assetPath,
+  );
+  final ValueNotifier<bool> _fakePixelsUiVisible = ValueNotifier<bool>(
+    _layerById(FakePixelsLayerId.stageUi).visible,
   );
   final ValueNotifier<bool> _viewportGesturesEnabled =
       ValueNotifier<bool>(true);
   final ValueNotifier<int> _viewportTransformTick = ValueNotifier<int>(0);
 
-  final ValueNotifier<OsMode> _osMode = ValueNotifier<OsMode>(OsMode.home);
-  final ValueNotifier<bool> _osMenuVisible = ValueNotifier<bool>(false);
+  final ValueNotifier<CanvasMode> _canvasMode =
+      ValueNotifier<CanvasMode>(CanvasMode.home);
+  final ValueNotifier<bool> _controlCenterVisible = ValueNotifier<bool>(false);
   final ValueNotifier<DebugUiState> _debugUiState =
       ValueNotifier<DebugUiState>(const DebugUiState());
 
@@ -45,10 +52,20 @@ class ShellOsImpl extends FlameGame {
   double? _twoFingerDistance;
   Offset? _twoFingerFocalPoint;
 
+  static FakePixelsLayer _layerById(String id) {
+    return defaultFakePixelsConfig.layers.firstWhere(
+      (layer) => layer.id == id,
+      orElse: () => defaultFakePixelsConfig.layers.first,
+    );
+  }
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    setFakePixelsLogoAsset(_fakePixelsLogoAsset.value);
+    _fakePixels.setLayers(defaultFakePixelsConfig.layers);
+    setFakePixelsBaseAsset(_fakePixelsBaseAsset.value);
+    setFakePixelsUiAsset(_fakePixelsUiAsset.value);
+    setFakePixelsUiVisible(_fakePixelsUiVisible.value);
     _syncStageTransform();
   }
 
@@ -73,13 +90,14 @@ class ShellOsImpl extends FlameGame {
     super.render(canvas);
   }
 
-  ValueListenable<OsMode> get osModeListenable => _osMode;
+  ValueListenable<CanvasMode> get canvasModeListenable => _canvasMode;
 
-  OsMode get osMode => _osMode.value;
+  CanvasMode get canvasMode => _canvasMode.value;
 
-  ValueListenable<bool> get osMenuVisibilityListenable => _osMenuVisible;
+  ValueListenable<bool> get controlCenterVisibilityListenable =>
+      _controlCenterVisible;
 
-  bool get isOsMenuVisible => _osMenuVisible.value;
+  bool get isControlCenterVisible => _controlCenterVisible.value;
 
   ValueListenable<DebugUiState> get debugUiListenable => _debugUiState;
 
@@ -98,10 +116,19 @@ class ShellOsImpl extends FlameGame {
 
   double get fakePixelsGridLineWidth => _fakePixelsGridLineWidth.value;
 
-  ValueListenable<String> get fakePixelsLogoAssetListenable =>
-      _fakePixelsLogoAsset;
+  ValueListenable<String> get fakePixelsBaseAssetListenable =>
+      _fakePixelsBaseAsset;
 
-  String get fakePixelsLogoAsset => _fakePixelsLogoAsset.value;
+  String get fakePixelsBaseAsset => _fakePixelsBaseAsset.value;
+
+  ValueListenable<String> get fakePixelsUiAssetListenable => _fakePixelsUiAsset;
+
+  String get fakePixelsUiAsset => _fakePixelsUiAsset.value;
+
+  ValueListenable<bool> get fakePixelsUiVisibleListenable =>
+      _fakePixelsUiVisible;
+
+  bool get fakePixelsUiVisible => _fakePixelsUiVisible.value;
 
   ValueListenable<bool> get viewportGesturesEnabledListenable =>
       _viewportGesturesEnabled;
@@ -116,11 +143,11 @@ class ShellOsImpl extends FlameGame {
 
   double get stageZoomLevel => _stageScale;
 
-  void setOsMenuVisible(bool visible) {
-    if (_osMenuVisible.value == visible) {
+  void setControlCenterVisible(bool visible) {
+    if (_controlCenterVisible.value == visible) {
       return;
     }
-    _osMenuVisible.value = visible;
+    _controlCenterVisible.value = visible;
   }
 
   void setDebugUiFlag(DebugUiLayer layer, bool enabled) {
@@ -158,19 +185,56 @@ class ShellOsImpl extends FlameGame {
     _fakePixelsGridLineWidth.value = width;
   }
 
-  void setFakePixelsLogoAsset(String assetPath) {
+  void setFakePixelsLayerAsset(String layerId, String assetPath) {
     if (assetPath.isEmpty) {
       return;
     }
-    _fakePixels.setLayers(
-      <FakePixelsLayer>[
-        FakePixelsLayer(assetPath: assetPath),
-      ],
+    _fakePixels.updateLayerById(
+      layerId,
+      (layer) => layer.copyWith(assetPath: assetPath),
     );
-    if (_fakePixelsLogoAsset.value == assetPath) {
+  }
+
+  void setFakePixelsLayerVisibility(String layerId, bool visible) {
+    _fakePixels.updateLayerById(
+      layerId,
+      (layer) => layer.copyWith(visible: visible),
+    );
+  }
+
+  void setFakePixelsBaseAsset(String assetPath) {
+    if (assetPath.isEmpty) {
       return;
     }
-    _fakePixelsLogoAsset.value = assetPath;
+    setFakePixelsLayerAsset(FakePixelsLayerId.stageBase, assetPath);
+    if (_fakePixelsBaseAsset.value == assetPath) {
+      return;
+    }
+    _fakePixelsBaseAsset.value = assetPath;
+  }
+
+  void setFakePixelsUiAsset(String assetPath) {
+    if (assetPath.isEmpty) {
+      return;
+    }
+    setFakePixelsLayerAsset(FakePixelsLayerId.stageUi, assetPath);
+    if (_fakePixelsUiAsset.value == assetPath) {
+      return;
+    }
+    _fakePixelsUiAsset.value = assetPath;
+  }
+
+  void setFakePixelsUiVisible(bool visible) {
+    setFakePixelsLayerVisibility(FakePixelsLayerId.stageUi, visible);
+    if (_fakePixelsUiVisible.value == visible) {
+      return;
+    }
+    _fakePixelsUiVisible.value = visible;
+  }
+
+  // Backward-compatible alias for existing callers.
+  void setFakePixelsLogoAsset(String assetPath) {
+    setFakePixelsBaseAsset(assetPath);
   }
 
   void setViewportGesturesEnabled(bool enabled) {
@@ -216,12 +280,12 @@ class ShellOsImpl extends FlameGame {
     _notifyViewportTransformChanged();
   }
 
-  void toggleDebugOverlay({bool fromMenuOverlay = false}) {
-    setOsMenuVisible(!_osMenuVisible.value);
+  void toggleControlCenter({bool fromControlCenter = false}) {
+    setControlCenterVisible(!_controlCenterVisible.value);
   }
 
-  Future<void> refreshShell() async {
-    _osMode.value = OsMode.home;
+  Future<void> refreshCanvas() async {
+    _canvasMode.value = CanvasMode.home;
   }
 
   void handlePointerSignal(PointerSignalEvent event) {

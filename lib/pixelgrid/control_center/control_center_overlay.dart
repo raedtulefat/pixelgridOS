@@ -3,44 +3,46 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
-import 'package:pixelgrid/os.dart';
-import 'package:pixelgrid/fake_pixels/logo_asset_catalog.dart';
-import 'package:pixelgrid/menus/menu_style.dart';
-import 'package:pixelgrid/menus/settings_menu.dart';
-import 'package:pixelgrid/settings/settings_applier.dart';
-import 'package:pixelgrid/settings/settings_controller.dart';
-import 'package:pixelgrid/settings/settings_keys.dart';
-import 'package:pixelgrid/settings/settings_storage.dart';
-import 'package:pixelgrid/ui/menu_column.dart';
-import 'package:pixelgrid/ui/modal.dart';
-import 'package:pixelgrid/ui/pixel/pixel_border_button.dart';
+import 'package:pixelgrid/pixelgrid.dart';
+import 'package:pixelgrid/pixelgrid/fake_pixels/logo_asset_catalog.dart';
+import 'package:pixelgrid/pixelgrid/control_center/control_center_style.dart';
+import 'package:pixelgrid/pixelgrid/control_center/control_center_settings.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_applier.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_controller.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_keys.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_storage.dart';
+import 'package:pixelgrid/pixelgrid/ui/menu_column.dart';
+import 'package:pixelgrid/pixelgrid/ui/modal.dart';
+import 'package:pixelgrid/pixelgrid/ui/pixel/pixel_border_button.dart';
 
 const String _kTestHubFocusText =
-    'Focus: Shell home shows full-screen tiles, hamburger menu, and fake app screens.';
+    'Focus: Canvas home shows full-screen tiles, control center, and fake app screens.';
 const String _kQaPromptFallbackText =
     'Focus: Open the hamburger menu, launch each fake app screen, and verify tile grid remains visible behind overlays.';
 
-class MenuOverlay extends StatefulWidget {
-  const MenuOverlay({
-    required this.os,
+class ControlCenterOverlay extends StatefulWidget {
+  const ControlCenterOverlay({
+    required this.pixelGrid,
   }) : super();
 
   static const String testHubFocusText = _kTestHubFocusText;
   static const String qaPromptFallbackText = _kQaPromptFallbackText;
 
-  final ShellOs os;
+  final PixelGrid pixelGrid;
 
   @override
-  State<MenuOverlay> createState() => _MenuOverlayState();
+  State<ControlCenterOverlay> createState() => _ControlCenterOverlayState();
 }
 
-class _MenuOverlayState extends State<MenuOverlay> {
+class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
   bool _showPrompt = false;
-  bool _showOsMenu = false;
+  bool _showControlCenter = false;
   bool _showSettingsModal = false;
   int _settingsTabIndex = 0;
-  List<String> _logoAssetOptions = const <String>[];
-  String? _selectedLogoAsset;
+  List<String> _baseAssetOptions = const <String>[];
+  List<String> _uiAssetOptions = const <String>[];
+  String? _selectedBaseAsset;
+  String? _selectedUiAsset;
   bool _showViewportZoomControls = false;
 
   final SettingsController _settings = SettingsController(SettingsStorage());
@@ -50,27 +52,31 @@ class _MenuOverlayState extends State<MenuOverlay> {
   @override
   void initState() {
     super.initState();
-    _debugMenuListener = _handleDebugMenuVisibility;
-    widget.os.osMenuVisibilityListenable.addListener(_debugMenuListener);
+    _debugMenuListener = _handleControlCenterVisibility;
+    widget.pixelGrid.controlCenterVisibilityListenable
+        .addListener(_debugMenuListener);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadSettings();
   }
 
   @override
-  void didUpdateWidget(covariant MenuOverlay oldWidget) {
+  void didUpdateWidget(covariant ControlCenterOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.os == widget.os) {
+    if (oldWidget.pixelGrid == widget.pixelGrid) {
       return;
     }
 
-    oldWidget.os.osMenuVisibilityListenable.removeListener(_debugMenuListener);
-    widget.os.osMenuVisibilityListenable.addListener(_debugMenuListener);
-    _applySettingsToOs();
+    oldWidget.pixelGrid.controlCenterVisibilityListenable
+        .removeListener(_debugMenuListener);
+    widget.pixelGrid.controlCenterVisibilityListenable
+        .addListener(_debugMenuListener);
+    _applySettingsToPlatform();
   }
 
   @override
   void dispose() {
-    widget.os.osMenuVisibilityListenable.removeListener(_debugMenuListener);
+    widget.pixelGrid.controlCenterVisibilityListenable
+        .removeListener(_debugMenuListener);
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     super.dispose();
   }
@@ -86,25 +92,25 @@ class _MenuOverlayState extends State<MenuOverlay> {
         return true;
       }
 
-      widget.os.toggleDebugOverlay(fromMenuOverlay: true);
+      widget.pixelGrid.toggleControlCenter(fromControlCenter: true);
       return true;
     }
 
-    final panStep = widget.os.fakePixelsCellSize * 25;
+    final panStep = widget.pixelGrid.fakePixelsCellSize * 25;
     if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      widget.os.panViewportBy(Offset(-panStep, 0));
+      widget.pixelGrid.panViewportBy(Offset(-panStep, 0));
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      widget.os.panViewportBy(Offset(panStep, 0));
+      widget.pixelGrid.panViewportBy(Offset(panStep, 0));
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      widget.os.panViewportBy(Offset(0, -panStep));
+      widget.pixelGrid.panViewportBy(Offset(0, -panStep));
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      widget.os.panViewportBy(Offset(0, panStep));
+      widget.pixelGrid.panViewportBy(Offset(0, panStep));
       return true;
     }
 
@@ -113,14 +119,20 @@ class _MenuOverlayState extends State<MenuOverlay> {
 
   Future<void> _loadSettings() async {
     await _settings.load();
-    final logoOptions = await LogoAssetCatalog.loadOptions();
+    final baseOptions = await LogoAssetCatalog.loadOptionsForFolder(
+      'assets/ui/logo',
+    );
+    final uiOptions = await LogoAssetCatalog.loadOptionsForFolder(
+      'assets/ui/logo',
+    );
     if (!mounted) {
       return;
     }
     setState(() {
-      _logoAssetOptions = logoOptions;
+      _baseAssetOptions = baseOptions;
+      _uiAssetOptions = uiOptions;
     });
-    _applySettingsToOs();
+    _applySettingsToPlatform();
   }
 
   Future<void> _updateSetting(SettingToggle setting, bool next,
@@ -128,17 +140,17 @@ class _MenuOverlayState extends State<MenuOverlay> {
     if (persist) {
       await _settings.set(setting, next);
     }
-    _applySettingsToOs();
+    _applySettingsToPlatform();
   }
 
-  void _applySettingsToOs() {
+  void _applySettingsToPlatform() {
     final settings = _settings.snapshot();
     final storedTabIndex = _settings.getIntByKey(
       SettingKey.settingsLastOpenTab,
       defaultValue: 0,
     );
     final resolvedTabIndex =
-        storedTabIndex.clamp(0, SettingsMenu.tabCount - 1).toInt();
+        storedTabIndex.clamp(0, ControlCenterSettings.tabCount - 1).toInt();
     if (_settingsTabIndex != resolvedTabIndex) {
       setState(() {
         _settingsTabIndex = resolvedTabIndex;
@@ -162,17 +174,37 @@ class _MenuOverlayState extends State<MenuOverlay> {
       defaultValue: true,
     );
 
-    final fallbackLogoAsset = LogoAssetCatalog.fallbackFrom(_logoAssetOptions);
-    final savedLogoAsset = _settings.getStringByKey(
-      SettingKey.fakePixelsLogoAsset,
-      defaultValue: fallbackLogoAsset ?? '',
+    final fallbackBaseAsset = LogoAssetCatalog.fallbackFrom(_baseAssetOptions);
+    final fallbackUiAsset = LogoAssetCatalog.fallbackFrom(_uiAssetOptions);
+
+    final savedBaseAsset = _settings.getStringByKey(
+      SettingKey.fakePixelsBaseAsset,
+      defaultValue: _settings.getStringByKey(
+        SettingKey.fakePixelsLogoAsset,
+        defaultValue: fallbackBaseAsset ?? '',
+      ),
     );
-    final resolvedLogoAsset = _resolveLogoAsset(
-      requested: savedLogoAsset,
-      fallback: fallbackLogoAsset,
+    final savedUiAsset = _settings.getStringByKey(
+      SettingKey.fakePixelsUiAsset,
+      defaultValue: fallbackUiAsset ?? '',
+    );
+    final savedUiVisible = _settings.getBoolByKey(
+      SettingKey.fakePixelsUiVisible,
+      defaultValue: false,
     );
 
-    widget.os
+    final resolvedBaseAsset = _resolveAsset(
+      options: _baseAssetOptions,
+      requested: savedBaseAsset,
+      fallback: fallbackBaseAsset,
+    );
+    final resolvedUiAsset = _resolveAsset(
+      options: _uiAssetOptions,
+      requested: savedUiAsset,
+      fallback: fallbackUiAsset,
+    );
+
+    widget.pixelGrid
       ..setFakePixelsCellSize(pixResolution)
       ..setFakePixelsShadedColorsEnabled(pixShades)
       ..setFakePixelsGridLineWidth(pixGridLineWidth)
@@ -184,20 +216,37 @@ class _MenuOverlayState extends State<MenuOverlay> {
       });
     }
 
-    if (resolvedLogoAsset != null) {
-      widget.os.setFakePixelsLogoAsset(resolvedLogoAsset);
-      if (_selectedLogoAsset != resolvedLogoAsset && mounted) {
+    if (resolvedBaseAsset != null) {
+      widget.pixelGrid.setFakePixelsBaseAsset(resolvedBaseAsset);
+      if (_selectedBaseAsset != resolvedBaseAsset && mounted) {
         setState(() {
-          _selectedLogoAsset = resolvedLogoAsset;
+          _selectedBaseAsset = resolvedBaseAsset;
         });
       }
-      if (savedLogoAsset != resolvedLogoAsset) {
+      if (savedBaseAsset != resolvedBaseAsset) {
         _settings.setStringByKey(
-          SettingKey.fakePixelsLogoAsset,
-          resolvedLogoAsset,
+          SettingKey.fakePixelsBaseAsset,
+          resolvedBaseAsset,
         );
       }
     }
+
+    if (resolvedUiAsset != null) {
+      widget.pixelGrid.setFakePixelsUiAsset(resolvedUiAsset);
+      if (_selectedUiAsset != resolvedUiAsset && mounted) {
+        setState(() {
+          _selectedUiAsset = resolvedUiAsset;
+        });
+      }
+      if (savedUiAsset != resolvedUiAsset) {
+        _settings.setStringByKey(
+          SettingKey.fakePixelsUiAsset,
+          resolvedUiAsset,
+        );
+      }
+    }
+
+    widget.pixelGrid.setFakePixelsUiVisible(savedUiVisible);
 
     _settingsApplier.applyAll(
       settings: settings,
@@ -214,29 +263,29 @@ class _MenuOverlayState extends State<MenuOverlay> {
     });
   }
 
-  void _handleDebugMenuVisibility() {
-    final isVisible = widget.os.isOsMenuVisible;
-    if (_showOsMenu == isVisible) {
+  void _handleControlCenterVisibility() {
+    final isVisible = widget.pixelGrid.isControlCenterVisible;
+    if (_showControlCenter == isVisible) {
       return;
     }
     setState(() {
-      _showOsMenu = isVisible;
+      _showControlCenter = isVisible;
       if (isVisible) {
         _showSettingsModal = false;
       }
     });
   }
 
-  void _toggleOsMenu() {
-    widget.os.setOsMenuVisible(!_showOsMenu);
+  void _toggleControlCenter() {
+    widget.pixelGrid.setControlCenterVisible(!_showControlCenter);
   }
 
   void _openSettingsModal() {
     setState(() {
       _showSettingsModal = true;
-      _showOsMenu = false;
+      _showControlCenter = false;
     });
-    widget.os.setOsMenuVisible(false);
+    widget.pixelGrid.setControlCenterVisible(false);
   }
 
   void _closeSettingsModal() {
@@ -253,12 +302,12 @@ class _MenuOverlayState extends State<MenuOverlay> {
   }
 
   void _adjustPixelSize(double delta) {
-    final current = widget.os.fakePixelsCellSize;
+    final current = widget.pixelGrid.fakePixelsCellSize;
     final next = current + delta;
     if (!next.isFinite || next <= 0) {
       return;
     }
-    widget.os.setFakePixelsCellSize(next);
+    widget.pixelGrid.setFakePixelsCellSize(next);
     unawaited(
       _settings.setDoubleByKey(
         SettingKey.fakePixelsResolution,
@@ -267,20 +316,21 @@ class _MenuOverlayState extends State<MenuOverlay> {
     );
   }
 
-  String? _resolveLogoAsset({
+  String? _resolveAsset({
+    required List<String> options,
     required String requested,
     required String? fallback,
   }) {
-    if (_logoAssetOptions.isEmpty) {
+    if (options.isEmpty) {
       return null;
     }
-    if (requested.isNotEmpty && _logoAssetOptions.contains(requested)) {
+    if (requested.isNotEmpty && options.contains(requested)) {
       return requested;
     }
-    if (fallback != null && _logoAssetOptions.contains(fallback)) {
+    if (fallback != null && options.contains(fallback)) {
       return fallback;
     }
-    return _logoAssetOptions.first;
+    return options.first;
   }
 
   @override
@@ -297,8 +347,8 @@ class _MenuOverlayState extends State<MenuOverlay> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _SettingsButton(
-                  isOpen: _showOsMenu,
-                  onPressed: _toggleOsMenu,
+                  isOpen: _showControlCenter,
+                  onPressed: _toggleControlCenter,
                 ),
                 if (_showPrompt) ...[
                   const SizedBox(height: 12),
@@ -311,11 +361,11 @@ class _MenuOverlayState extends State<MenuOverlay> {
             ),
           ),
         ),
-        if (_showOsMenu)
+        if (_showControlCenter)
           Positioned.fill(
             child: Modal(
-              title: 'pixelgrid',
-              onClose: _toggleOsMenu,
+              title: 'Control Center',
+              onClose: _toggleControlCenter,
               child: MenuColumn(
                 spacing: 12,
                 children: [
@@ -334,15 +384,19 @@ class _MenuOverlayState extends State<MenuOverlay> {
             child: Modal(
               title: 'Settings',
               onClose: _closeSettingsModal,
-              child: SettingsMenu(
-                os: widget.os,
+              child: ControlCenterSettings(
+                pixelGrid: widget.pixelGrid,
                 showPrompt: _showPrompt,
-                logoAssetOptions: _logoAssetOptions,
-                selectedLogoAsset: _selectedLogoAsset,
+                baseAssetOptions: _baseAssetOptions,
+                uiAssetOptions: _uiAssetOptions,
+                selectedBaseAsset: _selectedBaseAsset,
+                selectedUiAsset: _selectedUiAsset,
+                uiLayerVisible: widget.pixelGrid.fakePixelsUiVisible,
                 initialTabIndex: _settingsTabIndex,
                 onTabChanged: (index) async {
-                  final resolved =
-                      index.clamp(0, SettingsMenu.tabCount - 1).toInt();
+                  final resolved = index
+                      .clamp(0, ControlCenterSettings.tabCount - 1)
+                      .toInt();
                   if (_settingsTabIndex != resolved && mounted) {
                     setState(() {
                       _settingsTabIndex = resolved;
@@ -357,45 +411,65 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   _updateSetting(setting, value ?? false, persist: true);
                 },
                 onPixResolutionChanged: (value) async {
-                  widget.os.setFakePixelsCellSize(value);
+                  widget.pixelGrid.setFakePixelsCellSize(value);
                   await _settings.setDoubleByKey(
                     SettingKey.fakePixelsResolution,
                     value,
                   );
                 },
                 onPixShadesChanged: (enabled) async {
-                  widget.os.setFakePixelsShadedColorsEnabled(enabled);
+                  widget.pixelGrid.setFakePixelsShadedColorsEnabled(enabled);
                   await _settings.setBoolByKey(
                     SettingKey.fakePixelsUseShades,
                     enabled,
                   );
                 },
                 onPixGridLineWidthChanged: (value) async {
-                  widget.os.setFakePixelsGridLineWidth(value);
+                  widget.pixelGrid.setFakePixelsGridLineWidth(value);
                   await _settings.setDoubleByKey(
                     SettingKey.fakePixelsGridLineWidth,
                     value,
                   );
                 },
                 onPixGestureControlsChanged: (enabled) async {
-                  widget.os.setViewportGesturesEnabled(enabled);
+                  widget.pixelGrid.setViewportGesturesEnabled(enabled);
                   await _settings.setBoolByKey(
                     SettingKey.fakePixelsGestureControlsEnabled,
                     enabled,
                   );
                 },
-                onLogoAssetChanged: (assetPath) async {
-                  widget.os.setFakePixelsLogoAsset(assetPath);
+                onBaseAssetChanged: (assetPath) async {
+                  widget.pixelGrid.setFakePixelsBaseAsset(assetPath);
                   await _settings.setStringByKey(
-                    SettingKey.fakePixelsLogoAsset,
+                    SettingKey.fakePixelsBaseAsset,
                     assetPath,
                   );
                   if (!mounted) {
                     return;
                   }
                   setState(() {
-                    _selectedLogoAsset = assetPath;
+                    _selectedBaseAsset = assetPath;
                   });
+                },
+                onUiAssetChanged: (assetPath) async {
+                  widget.pixelGrid.setFakePixelsUiAsset(assetPath);
+                  await _settings.setStringByKey(
+                    SettingKey.fakePixelsUiAsset,
+                    assetPath,
+                  );
+                  if (!mounted) {
+                    return;
+                  }
+                  setState(() {
+                    _selectedUiAsset = assetPath;
+                  });
+                },
+                onUiLayerVisibleChanged: (visible) async {
+                  widget.pixelGrid.setFakePixelsUiVisible(visible);
+                  await _settings.setBoolByKey(
+                    SettingKey.fakePixelsUiVisible,
+                    visible,
+                  );
                 },
               ),
             ),
@@ -406,19 +480,22 @@ class _MenuOverlayState extends State<MenuOverlay> {
           child: SafeArea(
             minimum: const EdgeInsets.only(top: 8),
             child: ValueListenableBuilder<bool>(
-              valueListenable: widget.os.viewportGesturesEnabledListenable,
+              valueListenable:
+                  widget.pixelGrid.viewportGesturesEnabledListenable,
               builder: (context, gesturesEnabled, _) {
                 if (!gesturesEnabled) {
                   return const SizedBox.shrink();
                 }
                 return ValueListenableBuilder<int>(
-                  valueListenable: widget.os.viewportTransformTickListenable,
+                  valueListenable:
+                      widget.pixelGrid.viewportTransformTickListenable,
                   builder: (context, tick, child) {
                     return ValueListenableBuilder<double>(
-                      valueListenable: widget.os.fakePixelsCellSizeListenable,
+                      valueListenable:
+                          widget.pixelGrid.fakePixelsCellSizeListenable,
                       builder: (context, pixelSize, child) {
-                        final isDefault = widget.os.isViewportAtDefault;
-                        final zoomLevel = widget.os.stageZoomLevel;
+                        final isDefault = widget.pixelGrid.isViewportAtDefault;
+                        final zoomLevel = widget.pixelGrid.stageZoomLevel;
                         final zoomLabel =
                             '${(zoomLevel * 100).toStringAsFixed(0)}%';
                         final pixelSizeLabel = _formatNumericLabel(pixelSize);
@@ -432,10 +509,10 @@ class _MenuOverlayState extends State<MenuOverlay> {
                               _showViewportZoomControls =
                                   !_showViewportZoomControls;
                             });
-                            widget.os.resetViewportTransform();
+                            widget.pixelGrid.resetViewportTransform();
                           },
-                          onZoomIn: widget.os.zoomViewportInStep,
-                          onZoomOut: widget.os.zoomViewportOutStep,
+                          onZoomIn: widget.pixelGrid.zoomViewportInStep,
+                          onZoomOut: widget.pixelGrid.zoomViewportOutStep,
                           onPixelSizeIncrease: () => _adjustPixelSize(1),
                           onPixelSizeDecrease: () => _adjustPixelSize(-1),
                         );

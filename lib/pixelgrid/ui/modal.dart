@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pixelgrid/ui/pixel/pixel_border_painter.dart';
+import 'package:pixelgrid/pixelgrid/ui/pixel/pixel_border_painter.dart';
 
 class Modal extends StatelessWidget {
   const Modal({

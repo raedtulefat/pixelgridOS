@@ -1,4 +1,4 @@
-import 'package:pixelgrid/settings/settings_storage.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_storage.dart';
 
 enum SettingToggle {
   promptBanner,

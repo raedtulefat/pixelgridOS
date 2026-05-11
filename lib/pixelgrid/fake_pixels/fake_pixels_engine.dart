@@ -7,18 +7,26 @@ import 'package:flutter/services.dart';
 /// A single layer sampled by the fake-pixels renderer.
 class FakePixelsLayer {
   const FakePixelsLayer({
+    required this.id,
+    required this.group,
     required this.assetPath,
     this.priority = 0,
+    this.visible = true,
     this.mirroredX = false,
     this.stagePosition = Offset.zero,
     this.stageScale = 1,
   });
 
-  /// Asset path as declared in Flutter assets (e.g. `assets/ui/logo.png`).
+  final String id;
+  final String group;
+
+  /// Asset path as declared in Flutter assets (e.g. `assets/ui/logo/logo1.png`).
   final String assetPath;
 
   /// Draw order when overlapping. Higher priority draws later.
   final int priority;
+
+  final bool visible;
 
   /// Mirrors source sampling horizontally.
   final bool mirroredX;
@@ -28,6 +36,28 @@ class FakePixelsLayer {
 
   /// Layer size multiplier within stage-space.
   final double stageScale;
+
+  FakePixelsLayer copyWith({
+    String? id,
+    String? group,
+    String? assetPath,
+    int? priority,
+    bool? visible,
+    bool? mirroredX,
+    Offset? stagePosition,
+    double? stageScale,
+  }) {
+    return FakePixelsLayer(
+      id: id ?? this.id,
+      group: group ?? this.group,
+      assetPath: assetPath ?? this.assetPath,
+      priority: priority ?? this.priority,
+      visible: visible ?? this.visible,
+      mirroredX: mirroredX ?? this.mirroredX,
+      stagePosition: stagePosition ?? this.stagePosition,
+      stageScale: stageScale ?? this.stageScale,
+    );
+  }
 }
 
 /// Renders a constant-size fake-pixel grid and fills cells by sampling PNG data.
@@ -93,6 +123,19 @@ class FakePixelsEngine {
     _layers = List<FakePixelsLayer>.unmodifiable(layers);
   }
 
+  List<FakePixelsLayer> get layers => _layers;
+
+  void updateLayerById(
+      String id, FakePixelsLayer Function(FakePixelsLayer layer) updater) {
+    final index = _layers.indexWhere((layer) => layer.id == id);
+    if (index < 0) {
+      return;
+    }
+    final next = List<FakePixelsLayer>.from(_layers);
+    next[index] = updater(next[index]);
+    _layers = List<FakePixelsLayer>.unmodifiable(next);
+  }
+
   void setStageTransform({
     required double scale,
     required Offset offset,
@@ -120,6 +163,9 @@ class FakePixelsEngine {
     final renderSamples = <_RenderSample>[];
     var layerOrder = 0;
     for (final layer in _layers) {
+      if (!layer.visible) {
+        continue;
+      }
       layerOrder += 1;
       _ensureMaskLoaded(layer.assetPath);
       final alphaMask = _alphaMasksByAsset[layer.assetPath];
@@ -152,6 +198,7 @@ class FakePixelsEngine {
       if (byPriority != 0) {
         return byPriority;
       }
+      // Later configured layers draw later and win tie-breaks.
       return a.layerOrder.compareTo(b.layerOrder);
     });
 

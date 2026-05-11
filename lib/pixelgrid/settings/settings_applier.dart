@@ -1,4 +1,4 @@
-import 'package:pixelgrid/settings/settings_controller.dart';
+import 'package:pixelgrid/pixelgrid/settings/settings_controller.dart';
 
 class SettingsApplier {
   void applyAll({

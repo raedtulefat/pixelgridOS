@@ -1,11 +1,11 @@
 import "package:flutter/material.dart";
 
-import "package:pixelgrid/os.dart";
-import "package:pixelgrid/menus/menu_style.dart";
-import "package:pixelgrid/settings/settings_controller.dart";
-import "package:pixelgrid/ui/menu_column.dart";
-import "package:pixelgrid/ui/modal.dart";
-import "package:pixelgrid/ui/pixel/pixel_border_button.dart";
+import "package:pixelgrid/pixelgrid.dart";
+import "package:pixelgrid/pixelgrid/control_center/control_center_style.dart";
+import "package:pixelgrid/pixelgrid/settings/settings_controller.dart";
+import "package:pixelgrid/pixelgrid/ui/menu_column.dart";
+import "package:pixelgrid/pixelgrid/ui/modal.dart";
+import "package:pixelgrid/pixelgrid/ui/pixel/pixel_border_button.dart";
 
 enum _SettingsTab {
   config,
@@ -15,12 +15,15 @@ enum _SettingsTab {
   pi,
 }
 
-class SettingsMenu extends StatelessWidget {
-  const SettingsMenu({
-    required this.os,
+class ControlCenterSettings extends StatelessWidget {
+  const ControlCenterSettings({
+    required this.pixelGrid,
     required this.showPrompt,
-    required this.logoAssetOptions,
-    required this.selectedLogoAsset,
+    required this.baseAssetOptions,
+    required this.uiAssetOptions,
+    required this.selectedBaseAsset,
+    required this.selectedUiAsset,
+    required this.uiLayerVisible,
     required this.initialTabIndex,
     required this.onTabChanged,
     required this.onSettingChanged,
@@ -28,15 +31,20 @@ class SettingsMenu extends StatelessWidget {
     required this.onPixShadesChanged,
     required this.onPixGridLineWidthChanged,
     required this.onPixGestureControlsChanged,
-    required this.onLogoAssetChanged,
+    required this.onBaseAssetChanged,
+    required this.onUiAssetChanged,
+    required this.onUiLayerVisibleChanged,
   });
 
   static const int tabCount = 5;
 
-  final ShellOs os;
+  final PixelGrid pixelGrid;
   final bool showPrompt;
-  final List<String> logoAssetOptions;
-  final String? selectedLogoAsset;
+  final List<String> baseAssetOptions;
+  final List<String> uiAssetOptions;
+  final String? selectedBaseAsset;
+  final String? selectedUiAsset;
+  final bool uiLayerVisible;
   final int initialTabIndex;
   final Future<void> Function(int index) onTabChanged;
   final void Function(SettingToggle, bool? value) onSettingChanged;
@@ -44,7 +52,9 @@ class SettingsMenu extends StatelessWidget {
   final Future<void> Function(bool enabled) onPixShadesChanged;
   final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
-  final Future<void> Function(String assetPath) onLogoAssetChanged;
+  final Future<void> Function(String assetPath) onBaseAssetChanged;
+  final Future<void> Function(String assetPath) onUiAssetChanged;
+  final Future<void> Function(bool visible) onUiLayerVisibleChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -95,78 +105,103 @@ class SettingsMenu extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 SingleChildScrollView(
-                  child: _SettingsMenuBody(
+                  child: _ControlCenterSettingsBody(
                     tab: _SettingsTab.config,
-                    os: os,
+                    pixelGrid: pixelGrid,
                     showPrompt: showPrompt,
-                    logoAssetOptions: logoAssetOptions,
-                    selectedLogoAsset: selectedLogoAsset,
+                    baseAssetOptions: baseAssetOptions,
+                    uiAssetOptions: uiAssetOptions,
+                    selectedBaseAsset: selectedBaseAsset,
+                    selectedUiAsset: selectedUiAsset,
+                    uiLayerVisible: uiLayerVisible,
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
-                    onLogoAssetChanged: onLogoAssetChanged,
+                    onBaseAssetChanged: onBaseAssetChanged,
+                    onUiAssetChanged: onUiAssetChanged,
+                    onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
                 SingleChildScrollView(
-                  child: _SettingsMenuBody(
+                  child: _ControlCenterSettingsBody(
                     tab: _SettingsTab.debug,
-                    os: os,
+                    pixelGrid: pixelGrid,
                     showPrompt: showPrompt,
-                    logoAssetOptions: logoAssetOptions,
-                    selectedLogoAsset: selectedLogoAsset,
+                    baseAssetOptions: baseAssetOptions,
+                    uiAssetOptions: uiAssetOptions,
+                    selectedBaseAsset: selectedBaseAsset,
+                    selectedUiAsset: selectedUiAsset,
+                    uiLayerVisible: uiLayerVisible,
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
-                    onLogoAssetChanged: onLogoAssetChanged,
+                    onBaseAssetChanged: onBaseAssetChanged,
+                    onUiAssetChanged: onUiAssetChanged,
+                    onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
                 SingleChildScrollView(
-                  child: _SettingsMenuBody(
+                  child: _ControlCenterSettingsBody(
                     tab: _SettingsTab.pix,
-                    os: os,
+                    pixelGrid: pixelGrid,
                     showPrompt: showPrompt,
-                    logoAssetOptions: logoAssetOptions,
-                    selectedLogoAsset: selectedLogoAsset,
+                    baseAssetOptions: baseAssetOptions,
+                    uiAssetOptions: uiAssetOptions,
+                    selectedBaseAsset: selectedBaseAsset,
+                    selectedUiAsset: selectedUiAsset,
+                    uiLayerVisible: uiLayerVisible,
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
-                    onLogoAssetChanged: onLogoAssetChanged,
+                    onBaseAssetChanged: onBaseAssetChanged,
+                    onUiAssetChanged: onUiAssetChanged,
+                    onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
                 SingleChildScrollView(
-                  child: _SettingsMenuBody(
+                  child: _ControlCenterSettingsBody(
                     tab: _SettingsTab.assets,
-                    os: os,
+                    pixelGrid: pixelGrid,
                     showPrompt: showPrompt,
-                    logoAssetOptions: logoAssetOptions,
-                    selectedLogoAsset: selectedLogoAsset,
+                    baseAssetOptions: baseAssetOptions,
+                    uiAssetOptions: uiAssetOptions,
+                    selectedBaseAsset: selectedBaseAsset,
+                    selectedUiAsset: selectedUiAsset,
+                    uiLayerVisible: uiLayerVisible,
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
-                    onLogoAssetChanged: onLogoAssetChanged,
+                    onBaseAssetChanged: onBaseAssetChanged,
+                    onUiAssetChanged: onUiAssetChanged,
+                    onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
                 SingleChildScrollView(
-                  child: _SettingsMenuBody(
+                  child: _ControlCenterSettingsBody(
                     tab: _SettingsTab.pi,
-                    os: os,
+                    pixelGrid: pixelGrid,
                     showPrompt: showPrompt,
-                    logoAssetOptions: logoAssetOptions,
-                    selectedLogoAsset: selectedLogoAsset,
+                    baseAssetOptions: baseAssetOptions,
+                    uiAssetOptions: uiAssetOptions,
+                    selectedBaseAsset: selectedBaseAsset,
+                    selectedUiAsset: selectedUiAsset,
+                    uiLayerVisible: uiLayerVisible,
                     onSettingChanged: onSettingChanged,
                     onPixResolutionChanged: onPixResolutionChanged,
                     onPixShadesChanged: onPixShadesChanged,
                     onPixGridLineWidthChanged: onPixGridLineWidthChanged,
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
-                    onLogoAssetChanged: onLogoAssetChanged,
+                    onBaseAssetChanged: onBaseAssetChanged,
+                    onUiAssetChanged: onUiAssetChanged,
+                    onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
               ],
@@ -199,32 +234,42 @@ class _SettingsSectionHeader extends StatelessWidget {
   }
 }
 
-class _SettingsMenuBody extends StatelessWidget {
-  const _SettingsMenuBody({
+class _ControlCenterSettingsBody extends StatelessWidget {
+  const _ControlCenterSettingsBody({
     required this.tab,
-    required this.os,
+    required this.pixelGrid,
     required this.showPrompt,
-    required this.logoAssetOptions,
-    required this.selectedLogoAsset,
+    required this.baseAssetOptions,
+    required this.uiAssetOptions,
+    required this.selectedBaseAsset,
+    required this.selectedUiAsset,
+    required this.uiLayerVisible,
     required this.onSettingChanged,
     required this.onPixResolutionChanged,
     required this.onPixShadesChanged,
     required this.onPixGridLineWidthChanged,
     required this.onPixGestureControlsChanged,
-    required this.onLogoAssetChanged,
+    required this.onBaseAssetChanged,
+    required this.onUiAssetChanged,
+    required this.onUiLayerVisibleChanged,
   });
 
   final _SettingsTab tab;
-  final ShellOs os;
+  final PixelGrid pixelGrid;
   final bool showPrompt;
-  final List<String> logoAssetOptions;
-  final String? selectedLogoAsset;
+  final List<String> baseAssetOptions;
+  final List<String> uiAssetOptions;
+  final String? selectedBaseAsset;
+  final String? selectedUiAsset;
+  final bool uiLayerVisible;
   final void Function(SettingToggle, bool? value) onSettingChanged;
   final Future<void> Function(double value) onPixResolutionChanged;
   final Future<void> Function(bool enabled) onPixShadesChanged;
   final Future<void> Function(double value) onPixGridLineWidthChanged;
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
-  final Future<void> Function(String assetPath) onLogoAssetChanged;
+  final Future<void> Function(String assetPath) onBaseAssetChanged;
+  final Future<void> Function(String assetPath) onUiAssetChanged;
+  final Future<void> Function(bool visible) onUiLayerVisibleChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +320,7 @@ class _SettingsMenuBody extends StatelessWidget {
       children: [
         const _SettingsSectionHeader("Fake pixels"),
         ValueListenableBuilder<double>(
-          valueListenable: os.fakePixelsCellSizeListenable,
+          valueListenable: pixelGrid.fakePixelsCellSizeListenable,
           builder: (context, cellSize, _) {
             return PixelBorderButton(
               label: "Res: ${_formatCellSize(cellSize)}",
@@ -290,7 +335,7 @@ class _SettingsMenuBody extends StatelessWidget {
           },
         ),
         ValueListenableBuilder<bool>(
-          valueListenable: os.fakePixelsShadedColorsListenable,
+          valueListenable: pixelGrid.fakePixelsShadedColorsListenable,
           builder: (context, shadesEnabled, _) {
             return PixelBorderButton(
               label: "Shades: ${shadesEnabled ? 'ON' : 'OFF'}",
@@ -304,7 +349,7 @@ class _SettingsMenuBody extends StatelessWidget {
           },
         ),
         ValueListenableBuilder<bool>(
-          valueListenable: os.viewportGesturesEnabledListenable,
+          valueListenable: pixelGrid.viewportGesturesEnabledListenable,
           builder: (context, gesturesEnabled, _) {
             return PixelBorderButton(
               label: "Gesture controls: ${gesturesEnabled ? 'ON' : 'OFF'}",
@@ -318,7 +363,7 @@ class _SettingsMenuBody extends StatelessWidget {
           },
         ),
         ValueListenableBuilder<double>(
-          valueListenable: os.fakePixelsGridLineWidthListenable,
+          valueListenable: pixelGrid.fakePixelsGridLineWidthListenable,
           builder: (context, lineWidth, _) {
             return PixelBorderButton(
               label: "Grid width: ${_formatCellSize(lineWidth)}",
@@ -342,31 +387,65 @@ class _SettingsMenuBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SettingsSectionHeader("Asset settings"),
-        const Text(
-          "Logo",
+        _buildAssetGroup(
+          title: 'Stage base',
+          options: baseAssetOptions,
+          selected: selectedBaseAsset,
+          onSelected: onBaseAssetChanged,
+        ),
+        const SizedBox(height: 4),
+        PixelBorderButton(
+          label: 'Stage UI visible: ${uiLayerVisible ? 'ON' : 'OFF'}',
+          fillColor: menuFillDark,
+          textColor: menuTextLight,
+          minHeight: 36,
+          onPressed: () async {
+            await onUiLayerVisibleChanged(!uiLayerVisible);
+          },
+        ),
+        _buildAssetGroup(
+          title: 'Stage UI',
+          options: uiAssetOptions,
+          selected: selectedUiAsset,
+          onSelected: onUiAssetChanged,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAssetGroup({
+    required String title,
+    required List<String> options,
+    required String? selected,
+    required Future<void> Function(String assetPath) onSelected,
+  }) {
+    return MenuColumn(
+      spacing: 6,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white70,
             fontWeight: FontWeight.w600,
           ),
         ),
-        if (logoAssetOptions.isEmpty)
+        if (options.isEmpty)
           const Text(
-            "No logo options found in assets/ui/logo/",
+            "No asset options found in assets/ui/logo/",
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white54),
           )
         else
-          for (final option in logoAssetOptions)
+          for (final option in options)
             PixelBorderButton(
               label: _assetLabel(option),
-              fillColor:
-                  option == selectedLogoAsset ? menuFillPrimary : menuFillDark,
-              textColor:
-                  option == selectedLogoAsset ? menuTextDark : menuTextLight,
+              fillColor: option == selected ? menuFillPrimary : menuFillDark,
+              textColor: option == selected ? menuTextDark : menuTextLight,
               minHeight: 36,
               onPressed: () async {
-                await onLogoAssetChanged(option);
+                await onSelected(option);
               },
             ),
       ],

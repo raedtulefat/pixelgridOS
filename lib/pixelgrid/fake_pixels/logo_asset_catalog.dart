@@ -1,19 +1,24 @@
 import 'package:flutter/services.dart';
 
 class LogoAssetCatalog {
-  static final RegExp _logoFolderPattern = RegExp(
-    r'^assets/ui/logo/.+\.(png|jpg|jpeg|webp)$',
-    caseSensitive: false,
-  );
-
   static final RegExp _endsWithSingleDigitOnePattern = RegExp(r'1$');
 
-  static Future<List<String>> loadOptions() async {
+  static Future<List<String>> loadOptions() {
+    return loadOptionsForFolder('assets/ui/logo');
+  }
+
+  static Future<List<String>> loadOptionsForFolder(String folderPath) async {
+    final escapedFolder = RegExp.escape(folderPath);
+    final folderPattern = RegExp(
+      '^' + escapedFolder + r'/.+\.(png|jpg|jpeg|webp)$',
+      caseSensitive: false,
+    );
+
     try {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
       final options = manifest
           .listAssets()
-          .where((assetPath) => _logoFolderPattern.hasMatch(assetPath))
+          .where((assetPath) => folderPattern.hasMatch(assetPath))
           .toList(growable: false)
         ..sort();
       return options;
