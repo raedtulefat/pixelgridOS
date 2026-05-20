@@ -1,7 +1,11 @@
+import "dart:convert";
+
 import "package:flutter/material.dart";
+import "package:http/http.dart" as http;
 
 import "package:pixelgrid/pixelgrid.dart";
 import "package:pixelgrid/pixelgrid/control_center/control_center_style.dart";
+import "package:pixelgrid/pixelgrid/fake_pixels/uploaded_image_asset_store.dart";
 import "package:pixelgrid/pixelgrid/settings/settings_controller.dart";
 import "package:pixelgrid/pixelgrid/ui/menu_column.dart";
 import "package:pixelgrid/pixelgrid/ui/modal.dart";
@@ -17,6 +21,7 @@ enum _SettingsTab {
 
 class ControlCenterSettings extends StatelessWidget {
   const ControlCenterSettings({
+    super.key,
     required this.pixelGrid,
     required this.showPrompt,
     required this.baseAssetOptions,
@@ -33,6 +38,9 @@ class ControlCenterSettings extends StatelessWidget {
     required this.onPixGestureControlsChanged,
     required this.onBaseAssetChanged,
     required this.onUiAssetChanged,
+    required this.onBaseAssetUpload,
+    required this.onUiAssetUpload,
+    required this.onUploadedAssetDelete,
     required this.onUiLayerVisibleChanged,
   });
 
@@ -54,6 +62,9 @@ class ControlCenterSettings extends StatelessWidget {
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onBaseAssetChanged;
   final Future<void> Function(String assetPath) onUiAssetChanged;
+  final Future<void> Function() onBaseAssetUpload;
+  final Future<void> Function() onUiAssetUpload;
+  final Future<void> Function(String assetPath) onUploadedAssetDelete;
   final Future<void> Function(bool visible) onUiLayerVisibleChanged;
 
   @override
@@ -121,6 +132,9 @@ class ControlCenterSettings extends StatelessWidget {
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onBaseAssetChanged: onBaseAssetChanged,
                     onUiAssetChanged: onUiAssetChanged,
+                    onBaseAssetUpload: onBaseAssetUpload,
+                    onUiAssetUpload: onUiAssetUpload,
+                    onUploadedAssetDelete: onUploadedAssetDelete,
                     onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
@@ -141,6 +155,9 @@ class ControlCenterSettings extends StatelessWidget {
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onBaseAssetChanged: onBaseAssetChanged,
                     onUiAssetChanged: onUiAssetChanged,
+                    onBaseAssetUpload: onBaseAssetUpload,
+                    onUiAssetUpload: onUiAssetUpload,
+                    onUploadedAssetDelete: onUploadedAssetDelete,
                     onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
@@ -161,6 +178,9 @@ class ControlCenterSettings extends StatelessWidget {
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onBaseAssetChanged: onBaseAssetChanged,
                     onUiAssetChanged: onUiAssetChanged,
+                    onBaseAssetUpload: onBaseAssetUpload,
+                    onUiAssetUpload: onUiAssetUpload,
+                    onUploadedAssetDelete: onUploadedAssetDelete,
                     onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
@@ -181,6 +201,9 @@ class ControlCenterSettings extends StatelessWidget {
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onBaseAssetChanged: onBaseAssetChanged,
                     onUiAssetChanged: onUiAssetChanged,
+                    onBaseAssetUpload: onBaseAssetUpload,
+                    onUiAssetUpload: onUiAssetUpload,
+                    onUploadedAssetDelete: onUploadedAssetDelete,
                     onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
@@ -201,6 +224,9 @@ class ControlCenterSettings extends StatelessWidget {
                     onPixGestureControlsChanged: onPixGestureControlsChanged,
                     onBaseAssetChanged: onBaseAssetChanged,
                     onUiAssetChanged: onUiAssetChanged,
+                    onBaseAssetUpload: onBaseAssetUpload,
+                    onUiAssetUpload: onUiAssetUpload,
+                    onUploadedAssetDelete: onUploadedAssetDelete,
                     onUiLayerVisibleChanged: onUiLayerVisibleChanged,
                   ),
                 ),
@@ -251,6 +277,9 @@ class _ControlCenterSettingsBody extends StatelessWidget {
     required this.onPixGestureControlsChanged,
     required this.onBaseAssetChanged,
     required this.onUiAssetChanged,
+    required this.onBaseAssetUpload,
+    required this.onUiAssetUpload,
+    required this.onUploadedAssetDelete,
     required this.onUiLayerVisibleChanged,
   });
 
@@ -269,6 +298,9 @@ class _ControlCenterSettingsBody extends StatelessWidget {
   final Future<void> Function(bool enabled) onPixGestureControlsChanged;
   final Future<void> Function(String assetPath) onBaseAssetChanged;
   final Future<void> Function(String assetPath) onUiAssetChanged;
+  final Future<void> Function() onBaseAssetUpload;
+  final Future<void> Function() onUiAssetUpload;
+  final Future<void> Function(String assetPath) onUploadedAssetDelete;
   final Future<void> Function(bool visible) onUiLayerVisibleChanged;
 
   @override
@@ -392,6 +424,8 @@ class _ControlCenterSettingsBody extends StatelessWidget {
           options: baseAssetOptions,
           selected: selectedBaseAsset,
           onSelected: onBaseAssetChanged,
+          onUpload: onBaseAssetUpload,
+          onDeleteUploaded: onUploadedAssetDelete,
         ),
         const SizedBox(height: 4),
         PixelBorderButton(
@@ -408,6 +442,8 @@ class _ControlCenterSettingsBody extends StatelessWidget {
           options: uiAssetOptions,
           selected: selectedUiAsset,
           onSelected: onUiAssetChanged,
+          onUpload: onUiAssetUpload,
+          onDeleteUploaded: onUploadedAssetDelete,
         ),
       ],
     );
@@ -418,6 +454,8 @@ class _ControlCenterSettingsBody extends StatelessWidget {
     required List<String> options,
     required String? selected,
     required Future<void> Function(String assetPath) onSelected,
+    required Future<void> Function() onUpload,
+    required Future<void> Function(String assetPath) onDeleteUploaded,
   }) {
     return MenuColumn(
       spacing: 6,
@@ -431,6 +469,15 @@ class _ControlCenterSettingsBody extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
+        PixelBorderButton(
+          label: 'Upload image',
+          fillColor: menuFillPrimary,
+          textColor: menuTextDark,
+          minHeight: 36,
+          onPressed: () async {
+            await onUpload();
+          },
+        ),
         if (options.isEmpty)
           const Text(
             "No asset options found in assets/ui/logo/",
@@ -439,13 +486,15 @@ class _ControlCenterSettingsBody extends StatelessWidget {
           )
         else
           for (final option in options)
-            PixelBorderButton(
+            _AssetOptionRow(
               label: _assetLabel(option),
-              fillColor: option == selected ? menuFillPrimary : menuFillDark,
-              textColor: option == selected ? menuTextDark : menuTextLight,
-              minHeight: 36,
-              onPressed: () async {
+              selected: option == selected,
+              canDelete: isUploadedImageAssetPath(option),
+              onSelected: () async {
                 await onSelected(option);
+              },
+              onDelete: () async {
+                await onDeleteUploaded(option);
               },
             ),
       ],
@@ -453,6 +502,9 @@ class _ControlCenterSettingsBody extends StatelessWidget {
   }
 
   String _assetLabel(String assetPath) {
+    if (isUploadedImageAssetPath(assetPath)) {
+      return uploadedImageAssetLabel(assetPath);
+    }
     final fileName = assetPath.split('/').last;
     return fileName;
   }
@@ -629,15 +681,188 @@ class _ControlCenterSettingsBody extends StatelessWidget {
   }
 
   Widget _buildPiTab(BuildContext context) {
-    final controller = TextEditingController();
+    return const _PiPromptPanel();
+  }
+}
 
+class _AssetOptionRow extends StatelessWidget {
+  const _AssetOptionRow({
+    required this.label,
+    required this.selected,
+    required this.canDelete,
+    required this.onSelected,
+    required this.onDelete,
+  });
+
+  final String label;
+  final bool selected;
+  final bool canDelete;
+  final Future<void> Function() onSelected;
+  final Future<void> Function() onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = PixelBorderButton(
+      label: label,
+      fillColor: selected ? menuFillPrimary : menuFillDark,
+      textColor: selected ? menuTextDark : menuTextLight,
+      minHeight: 36,
+      onPressed: () async {
+        await onSelected();
+      },
+    );
+
+    if (!canDelete) {
+      return button;
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: button),
+        const SizedBox(width: 6),
+        _UploadedAssetDeleteButton(
+          onPressed: () async {
+            await onDelete();
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _UploadedAssetDeleteButton extends StatelessWidget {
+  const _UploadedAssetDeleteButton({
+    required this.onPressed,
+  });
+
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Delete uploaded asset',
+      child: SizedBox(
+        width: 44,
+        height: 36,
+        child: Material(
+          color: menuFillDark,
+          child: InkWell(
+            onTap: () async {
+              await onPressed();
+            },
+            child: const Icon(
+              Icons.delete_outline,
+              color: Colors.white70,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PiPromptPanel extends StatefulWidget {
+  const _PiPromptPanel();
+
+  @override
+  State<_PiPromptPanel> createState() => _PiPromptPanelState();
+}
+
+class _PiPromptPanelState extends State<_PiPromptPanel> {
+  static const String _piApiUrl = String.fromEnvironment(
+    "PI_API_URL",
+    defaultValue: "http://localhost:8787",
+  );
+  static const String _piBridgeToken = String.fromEnvironment(
+    "PI_BRIDGE_TOKEN",
+    defaultValue: "",
+  );
+
+  final TextEditingController _controller = TextEditingController();
+  bool _isSubmitting = false;
+  String? _statusText;
+  bool _statusIsError = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitPrompt() async {
+    final message = _controller.text.trim();
+    if (message.isEmpty || _isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _statusText = "Sending to Pi...";
+      _statusIsError = false;
+    });
+
+    try {
+      final headers = <String, String>{"content-type": "application/json"};
+      if (_piBridgeToken.isNotEmpty) {
+        headers["authorization"] = "Bearer $_piBridgeToken";
+      }
+
+      final response = await http.post(
+        Uri.parse("$_piApiUrl/prompt"),
+        headers: headers,
+        body: jsonEncode({"message": message}),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        setState(() {
+          _statusText = "Pi error ${response.statusCode}: ${response.body}";
+          _statusIsError = true;
+        });
+        return;
+      }
+
+      setState(() {
+        _controller.clear();
+        _statusText = "Sent to Pi. Check the Pi service logs for progress.";
+        _statusIsError = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _statusText = "Could not reach Pi at $_piApiUrl: $error";
+        _statusIsError = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MenuColumn(
       spacing: 8,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SettingsSectionHeader("Pi"),
+        Text(
+          "Prompts are sent to the Pi Docker service. Pi edits this project through the shared workspace volume.",
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
         TextField(
-          controller: controller,
+          controller: _controller,
           minLines: 6,
           maxLines: 12,
           cursorColor: menuTextLight,
@@ -647,7 +872,7 @@ class _ControlCenterSettingsBody extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(
-            hintText: "Type markdown...",
+            hintText: "Tell Pi what code changes to make...",
             hintStyle: const TextStyle(
               color: Colors.white54,
               fontSize: 14,
@@ -661,12 +886,21 @@ class _ControlCenterSettingsBody extends StatelessWidget {
           ),
         ),
         PixelBorderButton(
-          label: "Submit",
+          label: _isSubmitting ? "Sending..." : "Submit to Pi",
           fillColor: menuFillPrimary,
           textColor: menuTextDark,
           minHeight: 40,
-          onPressed: () {},
+          onPressed: _isSubmitting ? null : _submitPrompt,
         ),
+        if (_statusText != null)
+          Text(
+            _statusText!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _statusIsError ? Colors.redAccent : Colors.white70,
+              fontSize: 12,
+            ),
+          ),
       ],
     );
   }

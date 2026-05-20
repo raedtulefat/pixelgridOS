@@ -69,6 +69,22 @@ class SettingsController {
     await _storage.save(snapshotRaw());
   }
 
+  List<String> getStringListByKey(
+    String key, {
+    required List<String> defaultValue,
+  }) {
+    final value = _settings[key];
+    if (value is List) {
+      return value.whereType<String>().toList(growable: false);
+    }
+    return defaultValue;
+  }
+
+  Future<void> setStringListByKey(String key, List<String> value) async {
+    _settings[key] = List<String>.unmodifiable(value);
+    await _storage.save(snapshotRaw());
+  }
+
   int getIntByKey(String key, {required int defaultValue}) {
     final value = _settings[key];
     if (value is int) {

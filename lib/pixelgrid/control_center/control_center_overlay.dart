@@ -3,8 +3,10 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, KeyEvent, LogicalKeyboardKey;
+import 'package:image_picker/image_picker.dart';
 import 'package:pixelgrid/pixelgrid.dart';
 import 'package:pixelgrid/pixelgrid/fake_pixels/logo_asset_catalog.dart';
+import 'package:pixelgrid/pixelgrid/fake_pixels/uploaded_image_asset_store.dart';
 import 'package:pixelgrid/pixelgrid/control_center/control_center_style.dart';
 import 'package:pixelgrid/pixelgrid/control_center/control_center_settings.dart';
 import 'package:pixelgrid/pixelgrid/settings/settings_applier.dart';
@@ -22,8 +24,9 @@ const String _kQaPromptFallbackText =
 
 class ControlCenterOverlay extends StatefulWidget {
   const ControlCenterOverlay({
+    super.key,
     required this.pixelGrid,
-  }) : super();
+  });
 
   static const String testHubFocusText = _kTestHubFocusText;
   static const String qaPromptFallbackText = _kQaPromptFallbackText;
@@ -39,6 +42,7 @@ class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
   bool _showControlCenter = false;
   bool _showSettingsModal = false;
   int _settingsTabIndex = 0;
+  List<String> _uploadedAssetOptions = const <String>[];
   List<String> _baseAssetOptions = const <String>[];
   List<String> _uiAssetOptions = const <String>[];
   String? _selectedBaseAsset;
@@ -47,6 +51,7 @@ class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
 
   final SettingsController _settings = SettingsController(SettingsStorage());
   final SettingsApplier _settingsApplier = SettingsApplier();
+  final ImagePicker _imagePicker = ImagePicker();
   late final VoidCallback _debugMenuListener;
 
   @override
@@ -119,16 +124,40 @@ class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
 
   Future<void> _loadSettings() async {
     await _settings.load();
-    final baseOptions = await LogoAssetCatalog.loadOptionsForFolder(
+    final bundledBaseOptions = await LogoAssetCatalog.loadOptionsForFolder(
       'assets/ui/logo',
     );
-    final uiOptions = await LogoAssetCatalog.loadOptionsForFolder(
+    final bundledUiOptions = await LogoAssetCatalog.loadOptionsForFolder(
       'assets/ui/logo',
     );
+    final savedBaseAsset = _settings.getStringByKey(
+      SettingKey.fakePixelsBaseAsset,
+      defaultValue: _settings.getStringByKey(
+        SettingKey.fakePixelsLogoAsset,
+        defaultValue: '',
+      ),
+    );
+    final savedUiAsset = _settings.getStringByKey(
+      SettingKey.fakePixelsUiAsset,
+      defaultValue: '',
+    );
+    final uploadedOptions = _uploadedAssetsFromSettings(
+      include: <String>[savedBaseAsset, savedUiAsset],
+    );
+    final baseOptions = _combineAssetOptions(
+      bundledOptions: bundledBaseOptions,
+      uploadedOptions: uploadedOptions,
+    );
+    final uiOptions = _combineAssetOptions(
+      bundledOptions: bundledUiOptions,
+      uploadedOptions: uploadedOptions,
+    );
+    unawaited(_persistUploadedAssets(uploadedOptions));
     if (!mounted) {
       return;
     }
     setState(() {
+      _uploadedAssetOptions = uploadedOptions;
       _baseAssetOptions = baseOptions;
       _uiAssetOptions = uiOptions;
     });
@@ -333,6 +362,205 @@ class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
     return options.first;
   }
 
+  List<String> _uploadedAssetsFromSettings({
+    Iterable<String> include = const <String>[],
+  }) {
+    return _uniqueUploadedAssets(
+      <String>[
+        ..._settings.getStringListByKey(
+          SettingKey.fakePixelsUploadedAssets,
+          defaultValue: const <String>[],
+        ),
+        ...include,
+      ],
+    );
+  }
+
+  List<String> _uniqueUploadedAssets(Iterable<String> assetPaths) {
+    final result = <String>[];
+    for (final assetPath in assetPaths) {
+      if (!isUploadedImageAssetPath(assetPath)) {
+        continue;
+      }
+      if (result.contains(assetPath)) {
+        continue;
+      }
+      result.add(assetPath);
+    }
+    return List<String>.unmodifiable(result);
+  }
+
+  List<String> _combineAssetOptions({
+    required List<String> bundledOptions,
+    required List<String> uploadedOptions,
+  }) {
+    return List<String>.unmodifiable(<String>[
+      ...uploadedOptions,
+      for (final option in bundledOptions)
+        if (!uploadedOptions.contains(option)) option,
+    ]);
+  }
+
+  List<String> _replaceUploadedAssetOptions(
+    List<String> options,
+    List<String> uploadedOptions,
+  ) {
+    final bundledOptions = options
+        .where((option) => !isUploadedImageAssetPath(option))
+        .toList(growable: false);
+    return _combineAssetOptions(
+      bundledOptions: bundledOptions,
+      uploadedOptions: uploadedOptions,
+    );
+  }
+
+  Future<void> _persistUploadedAssets(List<String> assetPaths) {
+    return _settings.setStringListByKey(
+      SettingKey.fakePixelsUploadedAssets,
+      _uniqueUploadedAssets(assetPaths),
+    );
+  }
+
+  Future<String?> _pickUploadedAsset() async {
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
+      if (pickedImage == null) {
+        return null;
+      }
+      final bytes = await pickedImage.readAsBytes();
+      if (bytes.isEmpty) {
+        return null;
+      }
+      return saveUploadedImageAsset(
+        bytes: bytes,
+        sourceName: pickedImage.name,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _uploadBaseAsset() async {
+    final assetPath = await _pickUploadedAsset();
+    if (assetPath == null) {
+      return;
+    }
+    final uploadedOptions = _uniqueUploadedAssets(
+      <String>[assetPath, ..._uploadedAssetOptions],
+    );
+    widget.pixelGrid.setFakePixelsBaseAsset(assetPath);
+    await _persistUploadedAssets(uploadedOptions);
+    await _settings.setStringByKey(
+      SettingKey.fakePixelsBaseAsset,
+      assetPath,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _uploadedAssetOptions = uploadedOptions;
+      _baseAssetOptions = _replaceUploadedAssetOptions(
+        _baseAssetOptions,
+        uploadedOptions,
+      );
+      _uiAssetOptions = _replaceUploadedAssetOptions(
+        _uiAssetOptions,
+        uploadedOptions,
+      );
+      _selectedBaseAsset = assetPath;
+    });
+  }
+
+  Future<void> _uploadUiAsset() async {
+    final assetPath = await _pickUploadedAsset();
+    if (assetPath == null) {
+      return;
+    }
+    final uploadedOptions = _uniqueUploadedAssets(
+      <String>[assetPath, ..._uploadedAssetOptions],
+    );
+    widget.pixelGrid.setFakePixelsUiAsset(assetPath);
+    await _persistUploadedAssets(uploadedOptions);
+    await _settings.setStringByKey(
+      SettingKey.fakePixelsUiAsset,
+      assetPath,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _uploadedAssetOptions = uploadedOptions;
+      _baseAssetOptions = _replaceUploadedAssetOptions(
+        _baseAssetOptions,
+        uploadedOptions,
+      );
+      _uiAssetOptions = _replaceUploadedAssetOptions(
+        _uiAssetOptions,
+        uploadedOptions,
+      );
+      _selectedUiAsset = assetPath;
+    });
+  }
+
+  Future<void> _deleteUploadedAsset(String assetPath) async {
+    if (!isUploadedImageAssetPath(assetPath)) {
+      return;
+    }
+
+    final uploadedOptions = _uploadedAssetOptions
+        .where((option) => option != assetPath)
+        .toList(growable: false);
+    final baseOptions = _replaceUploadedAssetOptions(
+      _baseAssetOptions,
+      uploadedOptions,
+    );
+    final uiOptions = _replaceUploadedAssetOptions(
+      _uiAssetOptions,
+      uploadedOptions,
+    );
+    final nextBaseAsset = _selectedBaseAsset == assetPath
+        ? LogoAssetCatalog.fallbackFrom(baseOptions)
+        : null;
+    final nextUiAsset = _selectedUiAsset == assetPath
+        ? LogoAssetCatalog.fallbackFrom(uiOptions)
+        : null;
+
+    await deleteUploadedImageAsset(assetPath);
+    await _persistUploadedAssets(uploadedOptions);
+
+    if (nextBaseAsset != null) {
+      widget.pixelGrid.setFakePixelsBaseAsset(nextBaseAsset);
+      await _settings.setStringByKey(
+        SettingKey.fakePixelsBaseAsset,
+        nextBaseAsset,
+      );
+    }
+    if (nextUiAsset != null) {
+      widget.pixelGrid.setFakePixelsUiAsset(nextUiAsset);
+      await _settings.setStringByKey(
+        SettingKey.fakePixelsUiAsset,
+        nextUiAsset,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _uploadedAssetOptions = uploadedOptions;
+      _baseAssetOptions = baseOptions;
+      _uiAssetOptions = uiOptions;
+      if (_selectedBaseAsset == assetPath) {
+        _selectedBaseAsset = nextBaseAsset;
+      }
+      if (_selectedUiAsset == assetPath) {
+        _selectedUiAsset = nextUiAsset;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -464,6 +692,9 @@ class _ControlCenterOverlayState extends State<ControlCenterOverlay> {
                     _selectedUiAsset = assetPath;
                   });
                 },
+                onBaseAssetUpload: _uploadBaseAsset,
+                onUiAssetUpload: _uploadUiAsset,
+                onUploadedAssetDelete: _deleteUploadedAsset,
                 onUiLayerVisibleChanged: (visible) async {
                   widget.pixelGrid.setFakePixelsUiVisible(visible);
                   await _settings.setBoolByKey(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class MenuColumn extends StatelessWidget {
   const MenuColumn({
+    super.key,
     required this.children,
     this.spacing = 12,
     this.crossAxisAlignment = CrossAxisAlignment.stretch,

@@ -4,6 +4,7 @@ import 'pixel_border_painter.dart';
 
 class PixelBorderButton extends StatefulWidget {
   const PixelBorderButton({
+    super.key,
     required this.label,
     required this.fillColor,
     required this.textColor,
@@ -60,6 +61,9 @@ class _PixelBorderButtonState extends State<PixelBorderButton> {
           child: Center(
             child: Text(
               widget.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

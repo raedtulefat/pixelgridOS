@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
+import 'package:pixelgrid/pixelgrid/fake_pixels/uploaded_image_asset_store.dart';
 
 /// A single layer sampled by the fake-pixels renderer.
 class FakePixelsLayer {
@@ -67,10 +68,9 @@ class FakePixelsEngine {
     this.alphaThreshold = 24,
     Color lineColor = const Color(0xFF000000),
     double lineStrokeWidth = 0.125,
-    bool useShadedColors = true,
+    this.useShadedColors = true,
   })  : _cellSize = cellSize,
         _lineStrokeWidth = lineStrokeWidth,
-        _useShadedColors = useShadedColors,
         _linePaint = Paint()
           ..color = lineColor
           ..style = PaintingStyle.stroke
@@ -88,11 +88,7 @@ class FakePixelsEngine {
     _cellSize = value;
   }
 
-  bool get useShadedColors => _useShadedColors;
-
-  set useShadedColors(bool value) {
-    _useShadedColors = value;
-  }
+  bool useShadedColors;
 
   double get lineStrokeWidth => _lineStrokeWidth;
 
@@ -105,7 +101,6 @@ class FakePixelsEngine {
 
   double _cellSize;
   double _lineStrokeWidth;
-  bool _useShadedColors;
   final int alphaThreshold;
 
   final Paint _linePaint;
@@ -407,6 +402,14 @@ class FakePixelsEngine {
   }
 
   Future<ByteData> _loadAssetBytes(String assetPath) async {
+    if (isUploadedImageAssetPath(assetPath)) {
+      final bytes = await loadUploadedImageAssetBytes(assetPath);
+      if (bytes == null) {
+        throw StateError('Uploaded image asset not found: $assetPath');
+      }
+      return bytes.buffer.asByteData(bytes.offsetInBytes, bytes.lengthInBytes);
+    }
+
     try {
       return await rootBundle.load(assetPath);
     } catch (_) {

@@ -6,6 +6,7 @@ abstract final class SettingKey {
       'fakePixelsLogoAsset'; // legacy alias
   static const String fakePixelsBaseAsset = 'fakePixelsBaseAsset';
   static const String fakePixelsUiAsset = 'fakePixelsUiAsset';
+  static const String fakePixelsUploadedAssets = 'fakePixelsUploadedAssets';
   static const String fakePixelsUiVisible = 'fakePixelsUiVisible';
   static const String fakePixelsGestureControlsEnabled =
       'fakePixelsGestureControlsEnabled';

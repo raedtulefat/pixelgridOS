@@ -2,6 +2,11 @@ import 'package:flutter/services.dart';
 
 class LogoAssetCatalog {
   static final RegExp _endsWithSingleDigitOnePattern = RegExp(r'1$');
+  static const Set<String> _excludedFileNames = <String>{
+    'app_icon.jpg',
+    'app_icon.png',
+    'logo2.png',
+  };
 
   static Future<List<String>> loadOptions() {
     return loadOptionsForFolder('assets/ui/logo');
@@ -10,7 +15,7 @@ class LogoAssetCatalog {
   static Future<List<String>> loadOptionsForFolder(String folderPath) async {
     final escapedFolder = RegExp.escape(folderPath);
     final folderPattern = RegExp(
-      '^' + escapedFolder + r'/.+\.(png|jpg|jpeg|webp)$',
+      '^$escapedFolder' r'/.+\.(png|jpg|jpeg|webp)$',
       caseSensitive: false,
     );
 
@@ -19,7 +24,10 @@ class LogoAssetCatalog {
       final options = manifest
           .listAssets()
           .where((assetPath) => folderPattern.hasMatch(assetPath))
-          .toList(growable: false)
+          .where((assetPath) {
+        final fileName = assetPath.split('/').last.toLowerCase();
+        return !_excludedFileNames.contains(fileName);
+      }).toList(growable: false)
         ..sort();
       return options;
     } catch (_) {

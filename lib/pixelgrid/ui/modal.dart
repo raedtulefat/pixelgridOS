@@ -3,6 +3,7 @@ import 'package:pixelgrid/pixelgrid/ui/pixel/pixel_border_painter.dart';
 
 class Modal extends StatelessWidget {
   const Modal({
+    super.key,
     required this.title,
     required this.child,
     required this.onClose,
