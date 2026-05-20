@@ -857,7 +857,7 @@ class _PiPromptPanelState extends State<_PiPromptPanel> {
       children: [
         const _SettingsSectionHeader("Pi"),
         Text(
-          "Prompts are sent to the Pi Docker service. Pi edits this project through the shared workspace volume.",
+          "Prompts are sent to the configured Pi service.",
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
